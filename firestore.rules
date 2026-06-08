@@ -1,0 +1,128 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net - Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isUserAdmin(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid)) &&
+             get(/databases/$(database)/documents/users/$(uid)).data.role == "Admin";
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == "shelly.jencmen@gmail.com" ||
+        isUserAdmin(request.auth.uid)
+      );
+    }
+
+    function getUserCoupleId(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.couple_id;
+    }
+
+    function matchExists(matchId) {
+      return exists(/databases/$(database)/documents/matches/$(matchId));
+    }
+
+    function getMatchPredictionLockTime(matchId) {
+      return get(/databases/$(database)/documents/matches/$(matchId)).data.prediction_lock_time;
+    }
+
+    // 1. Users Collection
+    match /users/{userId} {
+      allow get, list: if isSignedIn();
+      allow create: if isEmailVerified() && userId == request.auth.uid;
+      allow update: if isEmailVerified() && (
+        isAdmin() || (
+          userId == request.auth.uid &&
+          request.resource.data.role == resource.data.role &&
+          request.resource.data.couple_id == resource.data.couple_id
+        )
+      );
+      allow delete: if isAdmin();
+    }
+
+    // 2. Couples Collection
+    match /couples/{coupleId} {
+      allow read: if isSignedIn();
+      allow create: if isEmailVerified();
+      allow update: if isEmailVerified() && (
+        isAdmin() || 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserCoupleId(request.auth.uid) == coupleId)
+      );
+      allow delete: if isAdmin();
+    }
+
+    // 3. Matches Collection
+    match /matches/{matchId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // 4. Predictions Collection
+    match /predictions/{predictionId} {
+      allow get, list: if isSignedIn();
+      allow create: if isEmailVerified()
+                       && request.resource.data.couple_id == getUserCoupleId(request.auth.uid)
+                       && matchExists(request.resource.data.match_id)
+                       && getMatchPredictionLockTime(request.resource.data.match_id) > request.time;
+      
+      allow update: if isEmailVerified()
+                       && (
+                         isAdmin() ||
+                         (
+                           request.resource.data.couple_id == getUserCoupleId(request.auth.uid)
+                           && resource.data.couple_id == getUserCoupleId(request.auth.uid)
+                           && request.resource.data.points == resource.data.points
+                           && request.resource.data.match_id == resource.data.match_id
+                           && matchExists(resource.data.match_id)
+                           && getMatchPredictionLockTime(resource.data.match_id) > request.time
+                         )
+                       );
+      allow delete: if isAdmin();
+    }
+
+    // 5. Bonus Predictions Collection
+    match /bonusPredictions/{bonusPredictionId} {
+      allow get, list: if isSignedIn();
+      allow create: if isEmailVerified()
+                       && bonusPredictionId == getUserCoupleId(request.auth.uid)
+                       && request.resource.data.couple_id == getUserCoupleId(request.auth.uid)
+                       && request.resource.data.locked == false;
+
+      allow update: if isEmailVerified()
+                       && (
+                         isAdmin() ||
+                         (
+                           bonusPredictionId == getUserCoupleId(request.auth.uid)
+                           && resource.data.couple_id == getUserCoupleId(request.auth.uid)
+                           && resource.data.locked == false
+                         )
+                       );
+      allow delete: if isAdmin();
+    }
+
+    // 6. Tournament Results Collection
+    match /tournamentResults/{tournamentResultId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // 7. Settings Collection
+    match /settings/{settingId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}

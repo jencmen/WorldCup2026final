@@ -1,0 +1,155 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Main profile doc for users. Several users can belong to the same couple_id.",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string", "description": "Google UID" },
+        "email": { "type": "string", "description": "Email address of the user" },
+        "display_name": { "type": "string", "description": "Display name of the user" },
+        "couple_id": { "type": "string", "description": "Foreign key reference to couples" },
+        "role": { "type": "string", "enum": ["Admin", "Participant"], "description": "Role of the user" },
+        "active": { "type": "boolean", "description": "Whether user is active" },
+        "created_at": { "type": "string", "format": "date-time", "description": "Creation timestamp" }
+      },
+      "required": ["user_id", "email", "display_name", "couple_id", "role", "active", "created_at"]
+    },
+    "Couple": {
+      "title": "Couple Profile",
+      "description": "Represents a participating couple. Multiple users can point to the same Couple ID.",
+      "type": "object",
+      "properties": {
+        "couple_id": { "type": "string", "description": "Unique Couple ID" },
+        "couple_name": { "type": "string", "description": "The custom couple name/nickname" },
+        "avatar": { "type": "string", "description": "Avatar URL or identifier" },
+        "active": { "type": "boolean", "description": "Whether couple is currently active" },
+        "created_at": { "type": "string", "format": "date-time", "description": "Timestamp when this couple registration occurred" }
+      },
+      "required": ["couple_id", "couple_name", "active", "created_at"]
+    },
+    "Match": {
+      "title": "Match Schedule",
+      "description": "Details of world cup matches.",
+      "type": "object",
+      "properties": {
+        "match_id": { "type": "string", "description": "Unique key (e.g., m001)" },
+        "match_date": { "type": "string", "description": "HH:MM representation or DD/MM/YYYY text format" },
+        "match_time": { "type": "string", "description": "Original local or broadcast match time" },
+        "group_name": { "type": "string", "description": "Group name or phase, e.g. Group A, Quarter Final" },
+        "team_a": { "type": "string", "description": "Home or first team" },
+        "team_b": { "type": "string", "description": "Away or second team" },
+        "city": { "type": "string", "description": "The venue city" },
+        "broadcast_channel": { "type": "string", "description": "TV channel broadcasting in Israel" },
+        "prediction_lock_time": { "type": "string", "format": "date-time", "description": "Deterministic lock time (usually 5 minutes before scheduled kickoff)" },
+        "actual_team_a_goals": { "type": "number", "description": "Final score for Team A" },
+        "actual_team_b_goals": { "type": "number", "description": "Final score for Team B" },
+        "match_status": { "type": "string", "enum": ["scheduled", "finished"], "description": "Match phase state" },
+        "result_updated_at": { "type": "string", "format": "date-time", "description": "Admin response update timestamp" },
+        "result_updated_by": { "type": "string", "description": "Admin UID who saved the results" }
+      },
+      "required": ["match_id", "match_date", "group_name", "team_a", "team_b", "prediction_lock_time", "match_status"]
+    },
+    "Prediction": {
+      "title": "Match Prediction",
+      "description": "Predictions submitted by couple. Strictly unique by couple_id + match_id.",
+      "type": "object",
+      "properties": {
+        "prediction_id": { "type": "string", "description": "Format: coupleId_matchId" },
+        "match_id": { "type": "string", "description": "Target match key" },
+        "couple_id": { "type": "string", "description": "Predictor Couple ID" },
+        "home_goals": { "type": "number", "description": "Predicted home score" },
+        "away_goals": { "type": "number", "description": "Predicted away score" },
+        "comment": { "type": "string", "description": "A brief friendly trash-talk or thought comment" },
+        "points": { "type": "number", "description": "Allocated points calculated on actual match result" },
+        "score_reason": { "type": "string", "description": "Explanation of won points (e.g., exact_score, diff, winner)" },
+        "updated_by": { "type": "string", "description": "The custom UID of the user who edited it" },
+        "updated_at": { "type": "string", "format": "date-time", "description": "Date of latest modification" },
+        "calculated_at": { "type": "string", "format": "date-time", "description": "Timestamp when points were set/refreshed" }
+      },
+      "required": ["prediction_id", "match_id", "couple_id", "home_goals", "away_goals", "points", "updated_by", "updated_at"]
+    },
+    "BonusPrediction": {
+      "title": "Bonus Prediction",
+      "description": "Tournament-level predictions chosen by the couple.",
+      "type": "object",
+      "properties": {
+        "bonus_prediction_id": { "type": "string", "description": "Usually equal to couple_id" },
+        "couple_id": { "type": "string", "description": "Predictor Couple ID" },
+        "world_cup_winner": { "type": "string", "description": "Predicted tournament champ" },
+        "runner_up": { "type": "string", "description": "Predicted runner-up" },
+        "top_scorer": { "type": "string", "description": "Predicted Golden Boot winner" },
+        "surprise_team": { "type": "string", "description": "Predicted dark horse" },
+        "bonus_points": { "type": "number", "description": "Consolidated accrued bonus points" },
+        "bonus_reason": { "type": "string", "description": "Points break-down detail text string" },
+        "locked": { "type": "boolean", "description": "Whether inputs are locked from edit" },
+        "submitted_at": { "type": "string", "format": "date-time", "description": "Submitted timestamp" },
+        "calculated_at": { "type": "string", "format": "date-time", "description": "Points calculation timestamp" }
+      },
+      "required": ["bonus_prediction_id", "couple_id", "world_cup_winner", "runner_up", "top_scorer", "surprise_team", "bonus_points", "locked", "submitted_at"]
+    },
+    "TournamentResults": {
+      "title": "Tournament Results",
+      "description": "Actual values for long-term bonus categories, configured by Admin.",
+      "type": "object",
+      "properties": {
+        "tournament_result_id": { "type": "string", "description": "Standard identifier" },
+        "actual_world_cup_winner": { "type": "string", "description": "Target Winner country" },
+        "actual_runner_up": { "type": "string", "description": "Target Runner up country" },
+        "actual_top_scorer": { "type": "string", "description": "Target top scorer player" },
+        "actual_surprise_team": { "type": "string", "description": "Target surprise team" },
+        "updated_by": { "type": "string", "description": "Admin UID indicator" },
+        "updated_at": { "type": "string", "format": "date-time", "description": "Timestamp of modification" }
+      },
+      "required": ["tournament_result_id"]
+    },
+    "Setting": {
+      "title": "Scoring Settings",
+      "description": "Definitions for various scoring rules.",
+      "type": "object",
+      "properties": {
+        "setting_id": { "type": "string", "description": "Usually single standard key ID" },
+        "correct_winner_points": { "type": "number", "description": "Points for identifying correct winner or draw" },
+        "correct_goal_diff_points": { "type": "number", "description": "Points for identifying correct difference of goals" },
+        "exact_score_points": { "type": "number", "description": "Points for identifying exact score" },
+        "world_cup_winner_points": { "type": "number", "description": "Bonus point rules" },
+        "runner_up_points": { "type": "number", "description": "Bonus point rules" },
+        "top_scorer_points": { "type": "number", "description": "Bonus point rules" },
+        "surprise_team_points": { "type": "number", "description": "Bonus point rules" },
+        "updated_at": { "type": "string", "format": "date-time", "description": "Modification date" },
+        "updated_by": { "type": "string", "description": "Admin UID indicator" }
+      },
+      "required": ["setting_id", "correct_winner_points", "correct_goal_diff_points", "exact_score_points", "world_cup_winner_points", "runner_up_points", "top_scorer_points", "surprise_team_points"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "#/entities/User",
+      "description": "Google authenticated user database entries."
+    },
+    "couples/{coupleId}": {
+      "schema": "#/entities/Couple",
+      "description": "Registered friend Couples participating in the prediction league."
+    },
+    "matches/{matchId}": {
+      "schema": "#/entities/Match",
+      "description": "Schedule and live scores of individual WC 2026 matches."
+    },
+    "predictions/{predictionId}": {
+      "schema": "#/entities/Prediction",
+      "description": "Predictive submissions by Couples on a per-match basis."
+    },
+    "bonusPredictions/{bonusPredictionId}": {
+      "schema": "#/entities/BonusPrediction",
+      "description": "Long-term tournament bonus picks of each Couple."
+    },
+    "tournamentResults/{tournamentResultId}": {
+      "schema": "#/entities/TournamentResults",
+      "description": "Actual results of long-term tournament categories chosen by Admin."
+    },
+    "settings/{settingId}": {
+      "schema": "#/entities/Setting",
+      "description": "Adaptive point scoring guidelines mapped centrally."
+    }
+  }
+}

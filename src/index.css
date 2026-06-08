@@ -1,0 +1,36 @@
+@import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Rubik", "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", Fira Code, monospace;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #fbfcfa;
+  color: #1a1e1b;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* RTL layout specific styling rules */
+select, input, textarea {
+  text-align: right;
+}
+
+/* Custom scrollbar behaviors */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1;
+}
