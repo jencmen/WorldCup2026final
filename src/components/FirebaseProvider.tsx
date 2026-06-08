@@ -41,6 +41,8 @@ interface FirebaseContextType {
   settings: Setting;
   loading: boolean;
   leaderboard: CoupleScore[];
+  authError: string | null;
+  clearAuthError: () => void;
   
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
@@ -76,6 +78,8 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   
   const [loading, setLoading] = useState(true);
   const [leaderboard, setLeaderboard] = useState<CoupleScore[]>([]);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const clearAuthError = () => setAuthError(null);
 
   // 1. Listen to Auth changes
   useEffect(() => {
@@ -288,6 +292,7 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     provider.setCustomParameters({ prompt: "select_account" });
     try {
       setLoading(true);
+      setAuthError(null);
       const result = await signInWithPopup(auth, provider);
       
       // Verify if profile already exists
@@ -299,8 +304,21 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         // Force onboard flow
         setUserProfile(null);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Google login failure:", err);
+      let errMsg = "אירעה שגיאה בתהליך ההתחברות. אנא נסו שוב.";
+      if (err?.code === "auth/unauthorized-domain") {
+        errMsg = "auth/unauthorized-domain";
+      } else if (err?.code === "auth/popup-blocked") {
+        errMsg = "הדפדפן שלכם חסם את חלון ההתחברות (Popup Blocked). אנא אשרו חלונות קופצים בדפדפן עבור אתר זה ונסו שנית.";
+      } else if (err?.code === "auth/popup-closed-by-user") {
+        errMsg = "חלון ההתחברות נסגר לפני השלמת התהליך. נסו ללחוץ שוב ולהשלים את ההתחברות.";
+      } else if (err?.code === "auth/network-request-failed") {
+        errMsg = "שגיאת רשת. אנא ודאו שיש לכם חיבור אינטרנט תקין ונסו שוב.";
+      } else if (err?.message) {
+        errMsg = `שגיאת חיבור (${err.code || "unknown"}): ${err.message}`;
+      }
+      setAuthError(errMsg);
     } finally {
       setLoading(false);
     }
@@ -519,6 +537,8 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       settings,
       loading,
       leaderboard,
+      authError,
+      clearAuthError,
       
       signInWithGoogle,
       logout,

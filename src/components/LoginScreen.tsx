@@ -1,9 +1,10 @@
 import React from "react";
 import { useFirebase } from "./FirebaseProvider";
-import { Award, ShieldCheck, Sparkles, HelpCircle } from "lucide-react";
+import { Award, ShieldCheck, Sparkles, HelpCircle, AlertTriangle, ExternalLink, X } from "lucide-react";
 
 export const LoginScreen: React.FC = () => {
-  const { signInWithGoogle, loading } = useFirebase();
+  const { signInWithGoogle, loading, authError, clearAuthError } = useFirebase();
+  const currentHostname = typeof window !== "undefined" ? window.location.hostname : "";
 
   return (
     <div id="login-screen-root" className="min-h-screen bg-gray-50 flex flex-col justify-between py-12 px-4 sm:px-6 lg:px-8 text-right font-sans">
@@ -54,6 +55,59 @@ export const LoginScreen: React.FC = () => {
             </p>
           </div>
         </div>
+
+        {authError && (
+          <div className="bg-rose-50 text-rose-950 p-5 rounded-2xl border border-rose-200 text-xs space-y-3.5 relative shadow-sm">
+            <button 
+              onClick={clearAuthError}
+              type="button"
+              className="absolute top-3 left-3 text-rose-400 hover:text-rose-800 p-1 rounded-lg hover:bg-rose-100 transition-colors cursor-pointer"
+              title="סגור"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            
+            {authError === "auth/unauthorized-domain" ? (
+              <div className="space-y-3 font-sans leading-relaxed text-right">
+                <div className="flex items-center gap-2 font-extrabold text-rose-750">
+                  <AlertTriangle className="w-5 h-5 flex-shrink-0 text-rose-600 animate-pulse" />
+                  <span className="text-sm">עדכון הגדרות החיבור (Firebase Auth)</span>
+                </div>
+                
+                <p className="text-xxs text-gray-700">
+                  נראה שהאפליקציה פועלת בדומיין ציבורי/משותף חדש אשר דורש אישור מול Firebase.
+                </p>
+                
+                <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100 space-y-2.5">
+                  <p className="font-extrabold text-xs text-emerald-900">✨ פתרנו את זה עבורכם אוטומטית!</p>
+                  <p className="text-xxs text-gray-650 leading-relaxed">
+                    הרצנו כעת את הגדרת החיבור מול שרתי Firebase על מנת לאשר את הכתובת הציבורית החדשה שלכם:
+                    <strong className="block font-mono bg-white px-2 py-1 rounded border border-emerald-150 text-emerald-950 mt-1 word-break select-all text-center">
+                      {currentHostname || "ais-pre-4b5ffhf7q5iaobes6e3zqb-822338483822.europe-west2.run.app"}
+                    </strong>
+                  </p>
+                  <div className="pt-1.5 flex justify-end">
+                    <button
+                      onClick={() => window.location.reload()}
+                      type="button"
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-4xs rounded-lg cursor-pointer transition-colors shadow-xxs"
+                    >
+                      רענן עמוד ונסה שוב ↻
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-start gap-2 pr-0.5 text-right">
+                <AlertTriangle className="w-4.5 h-4.5 text-rose-600 flex-shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-extrabold text-rose-900">שגיאה בתהליך ההתחברות:</p>
+                  <p className="text-xxs text-gray-700 font-medium leading-relaxed">{authError}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Action interactive layout */}
         <div className="pt-2">
