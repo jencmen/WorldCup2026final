@@ -68,32 +68,46 @@ export const LoginScreen: React.FC = () => {
             </button>
             
             {authError === "auth/unauthorized-domain" ? (
-              <div className="space-y-3 font-sans leading-relaxed text-right">
-                <div className="flex items-center gap-2 font-extrabold text-rose-750">
+              <div className="space-y-4 font-sans leading-relaxed text-right">
+                <div className="flex items-center gap-2 font-extrabold text-rose-850">
                   <AlertTriangle className="w-5 h-5 flex-shrink-0 text-rose-600 animate-pulse" />
-                  <span className="text-sm">עדכון הגדרות החיבור (Firebase Auth)</span>
+                  <span className="text-sm font-black animate-pulse">שגיאת התחברות בדומיין עצמאי</span>
                 </div>
                 
-                <p className="text-xxs text-gray-700">
-                  נראה שהאפליקציה פועלת בדומיין ציבורי/משותף חדש אשר דורש אישור מול Firebase.
+                <p className="text-xxs text-gray-700 font-semibold leading-normal">
+                  האפליקציה פועלת כעת בכתובת עצמאית: <strong className="font-mono bg-white px-1.5 py-0.5 rounded border text-rose-950 select-all">{currentHostname}</strong>.
+                  <br className="mb-1" />
+                  מטעמי אבטחה של Google/Firebase, לא ניתן לבצע Google Sign-In בדומיינים חיצוניים ללא הגדרת בעלות.
                 </p>
-                
-                <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100 space-y-2.5">
-                  <p className="font-extrabold text-xs text-emerald-900">✨ פתרנו את זה עבורכם אוטומטית!</p>
-                  <p className="text-xxs text-gray-650 leading-relaxed">
-                    הרצנו כעת את הגדרת החיבור מול שרתי Firebase על מנת לאשר את הכתובת הציבורית החדשה שלכם:
-                    <strong className="block font-mono bg-white px-2 py-1 rounded border border-emerald-150 text-emerald-950 mt-1 word-break select-all text-center">
-                      {currentHostname || "ais-pre-4b5ffhf7q5iaobes6e3zqb-822338483822.europe-west2.run.app"}
-                    </strong>
-                  </p>
-                  <div className="pt-1.5 flex justify-end">
-                    <button
-                      onClick={() => window.location.reload()}
-                      type="button"
-                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-4xs rounded-lg cursor-pointer transition-colors shadow-xxs"
+
+                <div className="space-y-3 pt-1">
+                  {/* Option 1 */}
+                  <div className="bg-emerald-50 text-emerald-950 p-3.5 rounded-xl border border-emerald-250">
+                    <p className="font-extrabold text-xxs text-emerald-900 mb-1">אפשרות 1: שימוש בכתובת השיתוף הרשמית (מומלץ ומהיר! 🚀)</p>
+                    <p className="text-4xs text-gray-650 mb-2 leading-relaxed">
+                      הכתובת המובנית של Google AI Studio מאושרת לחלוטין, עובדת באופן מיידי ללא הגדרות נוספות, ושומרת את כל נתוני החברים בבטחה בענן. שלחו לחבריכם קישור זה בלבד:
+                    </p>
+                    <a 
+                      href="https://ais-pre-4b5ffhf7q5iaobes6e3zqb-822338483822.europe-west2.run.app"
+                      target="_self"
+                      className="block text-center font-mono bg-white hover:bg-emerald-100/50 text-emerald-800 px-2 py-2 rounded-lg border border-emerald-300 font-bold transition-all text-xxs truncate"
                     >
-                      רענן עמוד ונסה שוב ↻
-                    </button>
+                      מעבר לאפליקציה בכתובת המקורית המאושרת ⚡
+                    </a>
+                  </div>
+
+                  {/* Option 2 */}
+                  <div className="bg-gray-50 text-gray-800 p-3.5 rounded-xl border border-gray-200/80 space-y-2">
+                    <p className="font-extrabold text-xxs text-gray-900 mb-0.5">אפשרות 2: חיבור פרויקט Firebase פרטי משלכם</p>
+                    <p className="text-4xs text-gray-650 leading-relaxed">
+                      מכיוון שלפרויקט ברירת המחדל של AI Studio אין הרשאות מנהל להוספת דומיינים חיצוניים באופן חופשי, אם ברצונכם להציג את האפליקציה בכתובת Vercel עליכם לקשר אותה לפרויקט Firebase אישי:
+                    </p>
+                    <ol className="list-decimal list-inside text-4xs text-gray-600 space-y-1.5 pr-1 font-medium">
+                      <li>פתחו פרויקט בחינם ב- <a href="https://console.firebase.google.com" target="_blank" rel="noreferrer" className="text-emerald-600 font-bold underline">Firebase Console</a></li>
+                      <li>הפעילו <strong>Firestore Database</strong> וכן <strong>Authentication</strong> (אפשרו Google Provider)</li>
+                      <li>הוסיפו את הכתובת <strong>{currentHostname}</strong> לרשימת הדומיינים המורשים (Authorized Domains) בהגדרות החיבור ב-Firebase</li>
+                      <li>החליפו את המפתח וההגדרות בקובץ הקוד <strong>firebase-applet-config.json</strong> שלכם והעלו מחדש!</li>
+                    </ol>
                   </div>
                 </div>
               </div>
