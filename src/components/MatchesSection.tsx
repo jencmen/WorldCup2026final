@@ -44,7 +44,7 @@ export const MatchesSection: React.FC<MatchesSectionProps> = ({ onOpenPredictMod
     const lockDt = match.prediction_lock_time?.seconds
       ? new Date(match.prediction_lock_time.seconds * 1000)
       : new Date(match.prediction_lock_time);
-    return now >= lockDt;
+    return now >= lockDt && !match.admin_unlocked;
   };
 
   // Sort matches based on selected option
@@ -290,7 +290,7 @@ export const MatchesSection: React.FC<MatchesSectionProps> = ({ onOpenPredictMod
                     <button
                       id={`predict-btn-page-${match.match_id}`}
                       onClick={() => onOpenPredictModal(match)}
-                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold cursor-pointer transition-transform transform active:scale-95"
+                      className="px-4 py-2 text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl text-xs font-bold cursor-pointer transition-transform transform active:scale-95"
                     >
                       {myPred ? "ערוך" : "נחש תוצאה"}
                     </button>
@@ -465,7 +465,7 @@ export const MatchesSection: React.FC<MatchesSectionProps> = ({ onOpenPredictMod
                       <button
                         id={`predict-btn-row-${match.match_id}`}
                         onClick={() => onOpenPredictModal(match)}
-                        className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold cursor-pointer transition-transform transform active:scale-95"
+                        className="px-4 py-1.5 text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl text-xs font-bold cursor-pointer transition-transform transform active:scale-95"
                       >
                         {myPred ? "ערוך" : "נחש תוצאה"}
                       </button>

@@ -351,7 +351,10 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const nowTime = new Date();
     const lockTime = parseFirestoreDate(mData.prediction_lock_time);
     
-    if (nowTime.getTime() >= lockTime.getTime()) {
+    // Check if locked, bypassed by admin_unlocked field
+    const isLockedState = nowTime.getTime() >= lockTime.getTime() && !mData.admin_unlocked;
+    
+    if (isLockedState && userProfile.role !== "Admin") {
       throw new Error("הזמן ננעל! לא ניתן להזין או לערוך ניחוש למשחק זה");
     }
 

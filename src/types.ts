@@ -35,6 +35,7 @@ export interface Match {
   match_status: "scheduled" | "finished";
   result_updated_at?: any;
   result_updated_by?: string;
+  admin_unlocked?: boolean;
 }
 
 export interface Prediction {

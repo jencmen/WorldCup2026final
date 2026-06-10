@@ -41,8 +41,14 @@ export const PredictModal: React.FC<PredictModalProps> = ({ match, onClose }) =>
 
   if (!match) return null;
 
+  const lockDt = match.prediction_lock_time?.seconds
+    ? new Date(match.prediction_lock_time.seconds * 1000)
+    : new Date(match.prediction_lock_time);
+  const isLocked = new Date() >= lockDt && !match.admin_unlocked && userProfile?.role !== "Admin";
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLocked) return;
     setErrorMsg("");
 
     const homeNum = Number(homeGoals);
@@ -77,7 +83,9 @@ export const PredictModal: React.FC<PredictModalProps> = ({ match, onClose }) =>
         {/* Modal Header */}
         <div className="px-6 py-4 bg-emerald-600 text-white flex justify-between items-center text-right">
           <div>
-            <span className="text-xxs uppercase tracking-wider font-mono text-emerald-100 block">הזנת ניחוש משחק</span>
+            <span className="text-xxs uppercase tracking-wider font-mono text-emerald-100 block">
+              {isLocked ? "צפייה בניחוש משחק (נעול)" : "הזנת ניחוש משחק"}
+            </span>
             <h3 className="text-base font-extrabold tracking-tight flex items-center justify-end gap-2">
               <TeamFlag teamName={match.team_a} className="w-6 h-4 rounded-xs border border-emerald-400" />
               <span>{match.team_a}</span>
@@ -118,7 +126,8 @@ export const PredictModal: React.FC<PredictModalProps> = ({ match, onClose }) =>
                 max={30}
                 value={homeGoals}
                 onChange={(e) => setHomeGoals(e.target.value)}
-                className="w-16 h-16 text-center text-2xl font-black bg-white border border-gray-200 focus:border-emerald-500 rounded-xl outline-none font-mono"
+                disabled={isLocked}
+                className="w-16 h-16 text-center text-2xl font-black bg-white disabled:bg-gray-100 disabled:text-gray-400 border border-gray-200 focus:border-emerald-500 rounded-xl outline-none font-mono"
                 required
               />
             </div>
@@ -140,14 +149,15 @@ export const PredictModal: React.FC<PredictModalProps> = ({ match, onClose }) =>
                 max={30}
                 value={awayGoals}
                 onChange={(e) => setAwayGoals(e.target.value)}
-                className="w-16 h-16 text-center text-2xl font-black bg-white border border-gray-200 focus:border-emerald-500 rounded-xl outline-none font-mono"
+                disabled={isLocked}
+                className="w-16 h-16 text-center text-2xl font-black bg-white disabled:bg-gray-100 disabled:text-gray-400 border border-gray-200 focus:border-emerald-500 rounded-xl outline-none font-mono"
                 required
               />
             </div>
           </div>
 
           {/* Social Comment/trash-talk */}
-          <div className="space-y-1.5 text-right">
+          <div className="space-y-1.5 text-right font-sans">
             <label className="text-xxs font-extrabold text-gray-500 block flex items-center gap-1">
               <MessageSquare className="w-3.5 h-3.5 text-emerald-500" />
               עקיצה או תגובה לחברים (אופציונלי):
@@ -155,10 +165,11 @@ export const PredictModal: React.FC<PredictModalProps> = ({ match, onClose }) =>
             <input
               id="modal-input-comment"
               type="text"
-              placeholder="למשל: הפעם זה פגיעה בול! 😉"
+              placeholder={isLocked ? "אין הודעה" : "למשל: הפעם זה פגיעה בול! 😉"}
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              className="w-full text-xs px-3.5 py-3.5 bg-gray-50 border border-gray-200 focus:border-emerald-500 focus:bg-white text-gray-800 font-medium rounded-xl outline-none transition-colors"
+              disabled={isLocked}
+              className="w-full text-xs px-3.5 py-3.5 bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 border border-gray-200 focus:border-emerald-500 focus:bg-white text-gray-800 font-medium rounded-xl outline-none transition-colors"
             />
           </div>
 
@@ -171,15 +182,26 @@ export const PredictModal: React.FC<PredictModalProps> = ({ match, onClose }) =>
           )}
 
           {/* Actions CTA buttons */}
-          <button
-            id="modal-save-button"
-            type="submit"
-            disabled={saving}
-            className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-200 text-white font-extrabold text-sm rounded-xl cursor-pointer shadow-sm transition-transform active:scale-95 flex items-center justify-center gap-2"
-          >
-            <Save className="w-4 h-4" />
-            {saving ? "שומר בעיצוב..." : "שמור ניחוש משחק"}
-          </button>
+          {isLocked ? (
+            <button
+              id="modal-close-locked-button"
+              type="button"
+              onClick={onClose}
+              className="w-full py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-750 font-extrabold text-sm rounded-xl cursor-pointer shadow-sm flex items-center justify-center gap-2 border border-gray-250 transition-colors"
+            >
+              הניחושים למשחק זה ננעלו - סגור חלונית 🔒
+            </button>
+          ) : (
+            <button
+              id="modal-save-button"
+              type="submit"
+              disabled={saving}
+              className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-200 text-white font-extrabold text-sm rounded-xl cursor-pointer shadow-sm transition-transform active:scale-95 flex items-center justify-center gap-2"
+            >
+              <Save className="w-4 h-4" />
+              {saving ? "שומר בעיצוב..." : "שמור ניחוש משחק"}
+            </button>
+          )}
 
         </form>
       </div>

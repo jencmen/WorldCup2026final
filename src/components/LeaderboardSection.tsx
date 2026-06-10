@@ -160,7 +160,7 @@ export const LeaderboardSection: React.FC = () => {
                                     ? new Date(match.prediction_lock_time.seconds * 1000) 
                                     : new Date(match.prediction_lock_time);
                                   
-                                  const isSecuredLock = now >= lock;
+                                  const isSecuredLock = now >= lock && !match.admin_unlocked;
                                   const finished = match.match_status === "finished";
 
                                   return (

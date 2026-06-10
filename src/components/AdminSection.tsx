@@ -6,7 +6,7 @@ import { db, handleFirestoreError, OperationType } from "../firebase";
 import { 
   Users, Calendar, Save, Trash2, Award, Settings, 
   Upload, HelpCircle, AlertCircle, CheckCircle, RefreshCw, Plus,
-  Pencil, ArrowUpDown, X
+  Pencil, ArrowUpDown, X, Lock, Unlock
 } from "lucide-react";
 
 export const AdminSection: React.FC = () => {
@@ -259,6 +259,19 @@ export const AdminSection: React.FC = () => {
 
   const handleDeleteMatch = (id: string, teams: string) => {
     setDeleteConfirmTarget({ id, type: "match", name: teams });
+  };
+
+  const handleToggleUnlockMatch = async (m: Match) => {
+    try {
+      const matchRef = doc(db, "matches", m.match_id);
+      const nextState = !m.admin_unlocked;
+      await updateDoc(matchRef, {
+        admin_unlocked: nextState
+      });
+      showSuccess(nextState ? `המשחק ${m.team_a} vs ${m.team_b} נפתח לניחושים בהצלחה! 🔓` : `המשחק ${m.team_a} vs ${m.team_b} ננעל מחדש. 🔒`);
+    } catch (err: any) {
+      showError(err.message || "שגיאה בשינוי מצב הנעילה");
+    }
   };
 
   const handleConfirmDelete = async () => {
@@ -1182,15 +1195,61 @@ export const AdminSection: React.FC = () => {
                             <span className="text-gray-450 font-normal px-1">vs</span>
                             <span className="text-gray-800">{m.team_b}</span>
                           </td>
-                          <td className="px-3 py-3.5 font-mono text-gray-600">{m.match_date} - {m.match_time}</td>
-                          <td className="px-3 py-3.5 text-left">
+                          <td className="px-3 py-3.5">
+                            <div className="font-mono text-gray-600">{m.match_date} - {m.match_time}</div>
+                            <div className="mt-1">
+                              {m.admin_unlocked ? (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-emerald-50 text-emerald-700 font-extrabold text-[10px] rounded border border-emerald-150">
+                                  <Unlock className="w-2.5 h-2.5" /> פתוח ע״י מנהל
+                                </span>
+                              ) : (() => {
+                                const now = new Date();
+                                const pts = m.match_date.split(/[/.-]/).map(p => p.trim());
+                                const day = Number(pts[0] || 1);
+                                const month = Number(pts[1] || 6);
+                                const year = Number(pts[2] || 2026);
+                                const [hour, minute] = (m.match_time || "20:00").split(":").map(Number);
+                                const kickoff = new Date(year, month - 1, day, hour, minute);
+                                const lockDt = m.prediction_lock_time?.seconds
+                                  ? new Date(m.prediction_lock_time.seconds * 1000)
+                                  : new Date(m.prediction_lock_time);
+                                const isLocked = now >= lockDt;
+                                return isLocked ? (
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-rose-50 text-rose-600 font-bold text-[10px] rounded border border-rose-150">
+                                    <Lock className="w-2.5 h-2.5" /> נעול אוטומטית
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-gray-50 text-gray-500 text-[10px] rounded border border-gray-150 font-medium font-sans">
+                                    נעילה אוטומטית
+                                  </span>
+                                );
+                              })()}
+                            </div>
+                          </td>
+                          <td className="px-3 py-3.5 text-left font-sans">
                             <div className="flex items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleToggleUnlockMatch(m)}
+                                className={`p-1.5 rounded cursor-pointer transition-colors ${
+                                  m.admin_unlocked
+                                    ? "text-rose-600 hover:text-rose-700 hover:bg-rose-50 bg-white border border-rose-200"
+                                    : "text-amber-600 hover:text-amber-700 hover:bg-amber-50 bg-white border border-amber-200"
+                                }`}
+                                title={m.admin_unlocked ? "נעל מחדש (הפעל מנגנון נעילה)" : "פתח נעילה לניחוש ידנית"}
+                              >
+                                {m.admin_unlocked ? (
+                                  <Lock className="w-3.5 h-3.5" />
+                                ) : (
+                                  <Unlock className="w-3.5 h-3.5" />
+                                )}
+                              </button>
                               <button
                                 onClick={() => handleEditClick(m)}
                                 className={`p-1.5 rounded cursor-pointer transition-colors ${
                                   isCurrentlyEditing
-                                    ? "text-amber-700 bg-amber-100 hover:bg-amber-200"
-                                    : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 bg-transparent border-none"
+                                    ? "text-amber-700 bg-amber-100 hover:bg-amber-200 border border-amber-300"
+                                    : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 bg-white border border-gray-200"
                                 }`}
                                 title="עדכן את נתוני המשחק"
                               >
@@ -1198,7 +1257,7 @@ export const AdminSection: React.FC = () => {
                               </button>
                               <button
                                 onClick={() => handleDeleteMatch(m.match_id, `${m.team_a} vs ${m.team_b}`)}
-                                className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded bg-transparent border-none cursor-pointer"
+                                className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded bg-white border border-gray-200 cursor-pointer"
                                 title="מחק משחק"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -1387,7 +1446,8 @@ export const AdminSection: React.FC = () => {
           <div className="space-y-4 divide-y divide-gray-100 max-h-120 overflow-y-auto pr-1">
             {matches.map(m => {
               const currentEdit = editingScores[m.match_id] || { home: "", away: "" };
-              const resolved = m.match_status === "finished";
+              const hasActiveEdit = !!editingScores[m.match_id];
+              const resolved = m.match_status === "finished" && !hasActiveEdit;
 
               return (
                 <div key={m.match_id} className="pt-4 first:pt-0 flex flex-col sm:flex-row items-center justify-between gap-4 font-sans text-xs">
@@ -1422,6 +1482,11 @@ export const AdminSection: React.FC = () => {
                       </div>
                     ) : (
                       <div className="flex items-center gap-2 font-mono">
+                        {m.match_status === "finished" && (
+                          <span className="text-[10px] font-extrabold text-amber-600 bg-amber-50 px-1.5 py-1 rounded border border-amber-200 font-sans">
+                            תיקון תוצאה
+                          </span>
+                        )}
                         <input
                           id={`score-home-${m.match_id}`}
                           type="number"
@@ -1455,6 +1520,22 @@ export const AdminSection: React.FC = () => {
                         >
                           <Save className="w-3.5 h-3.5" /> שמור
                         </button>
+
+                        {m.match_status === "finished" && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingScores(prev => {
+                                const copy = { ...prev };
+                                delete copy[m.match_id];
+                                return copy;
+                              });
+                            }}
+                            className="px-2 py-1.5 text-gray-500 hover:bg-gray-100 text-xxs font-bold rounded-lg border border-gray-200 cursor-pointer font-sans"
+                          >
+                            ביטול
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>

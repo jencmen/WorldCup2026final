@@ -23,21 +23,17 @@ export const HomeSection: React.FC<HomeSectionProps> = ({ onNavigate, onOpenPred
       const lockDt = m.prediction_lock_time?.seconds 
         ? new Date(m.prediction_lock_time.seconds * 1000) 
         : new Date(m.prediction_lock_time);
-      return m.match_status === "scheduled" && lockDt > nowLog;
+      return m.match_status === "scheduled" && (lockDt > nowLog || m.admin_unlocked);
     });
 
     setOpenMatches(open);
 
-    if (open.length > 0) {
-      setUpcomingMatch(open[0]); // Earliest open match is the next match
+    // Always show the absolute next scheduled match in the tournament as the showcased upcoming match
+    const sched = matches.filter(m => m.match_status === "scheduled");
+    if (sched.length > 0) {
+      setUpcomingMatch(sched[0]);
     } else {
-      // If no open matches, find next upcoming scheduled
-      const sched = matches.filter(m => m.match_status === "scheduled");
-      if (sched.length > 0) {
-        setUpcomingMatch(sched[0]);
-      } else {
-        setUpcomingMatch(null);
-      }
+      setUpcomingMatch(null);
     }
   }, [matches]);
 
@@ -57,8 +53,12 @@ export const HomeSection: React.FC<HomeSectionProps> = ({ onNavigate, onOpenPred
       const diff = lockDate.getTime() - now.getTime();
 
       if (diff <= 0) {
-        setCountdown("ההרשמה למשחק ננעלה ⏰");
-        clearInterval(timer);
+        if (upcomingMatch.admin_unlocked) {
+          setCountdown("פתוח מחדש ע״י מנהל המערכת! 🔓");
+        } else {
+          setCountdown("ההרשמה למשחק ננעלה ⏰");
+          clearInterval(timer);
+        }
       } else {
         const days = Math.floor(diff / (1000 * 60 * 60 * 24));
         const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -76,7 +76,15 @@ export const HomeSection: React.FC<HomeSectionProps> = ({ onNavigate, onOpenPred
   }, [upcomingMatch]);
 
   const userCoupleId = userProfile?.couple_id;
-  const topThree = leaderboard.slice(0, 3);
+
+  // Helper to check if a match prediction is locked for normal users
+  const isLocked = (match: Match) => {
+    const now = new Date();
+    const lockDt = match.prediction_lock_time?.seconds
+      ? new Date(match.prediction_lock_time.seconds * 1000)
+      : new Date(match.prediction_lock_time);
+    return now >= lockDt && !match.admin_unlocked;
+  };
 
   // Helper to check if current couple predicted a match
   const hasPredicted = (matchId: string) => {
@@ -88,6 +96,9 @@ export const HomeSection: React.FC<HomeSectionProps> = ({ onNavigate, onOpenPred
     const pred = predictions.find(p => p.match_id === matchId && p.couple_id === userCoupleId);
     return pred ? `${pred.home_goals} - ${pred.away_goals}` : "טרם ניחשת";
   };
+
+  // Prevent duplication of the main featured match in the smaller pending tasks list below
+  const openMatchesForQuickList = openMatches.filter(om => om.match_id !== upcomingMatch?.match_id);
 
   return (
     <div className="space-y-8 pb-20">
@@ -121,10 +132,17 @@ export const HomeSection: React.FC<HomeSectionProps> = ({ onNavigate, onOpenPred
 
           {upcomingMatch ? (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-md p-6 relative overflow-hidden">
-              <div className="absolute top-4 right-4 bg-amber-50 text-amber-700 text-xs px-3 py-1 rounded-full font-mono flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-ping" />
-                נעילה בעוד: {countdown || "בחישוב..."}
-              </div>
+              {isLocked(upcomingMatch) && userProfile?.role !== "Admin" ? (
+                <div className="absolute top-4 right-4 bg-rose-50 text-rose-700 text-xs px-3 py-1 rounded-full font-mono flex items-center gap-1.5 border border-rose-100 font-sans font-bold">
+                  <span className="w-1.5 h-1.5 bg-rose-500 rounded-full" />
+                  סטטוס: נעול לניחושים 🔒
+                </div>
+              ) : (
+                <div className="absolute top-4 right-4 bg-amber-50 text-amber-700 text-xs px-3 py-1 rounded-full font-mono flex items-center gap-1.5 border border-amber-100">
+                  <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-ping" />
+                  נעילה בעוד: {countdown || "בחישוב..."}
+                </div>
+              )}
 
               <div className="mt-4 text-center text-xs text-gray-400 font-medium">
                 {upcomingMatch.group_name} {upcomingMatch.city ? `• ${upcomingMatch.city}` : ""}
@@ -167,9 +185,17 @@ export const HomeSection: React.FC<HomeSectionProps> = ({ onNavigate, onOpenPred
                 <button
                   id={`predict-btn-home-${upcomingMatch.match_id}`}
                   onClick={() => onOpenPredictModal(upcomingMatch)}
-                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm rounded-xl cursor-pointer shadow-xs transition-transform transform active:scale-95 flex items-center gap-2"
+                  className={`px-5 py-2.5 font-bold text-sm rounded-xl cursor-pointer shadow-xs transition-all transform active:scale-95 flex items-center gap-2 ${
+                    isLocked(upcomingMatch) && userProfile?.role !== "Admin"
+                      ? "bg-gray-100 hover:bg-gray-200 text-gray-600 border border-gray-250"
+                      : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-md hover:shadow-lg"
+                  }`}
                 >
-                  {hasPredicted(upcomingMatch.match_id) ? "עדכן ניחוש" : "נחש עכשיו"}
+                  {isLocked(upcomingMatch) && userProfile?.role !== "Admin" ? (
+                    hasPredicted(upcomingMatch.match_id) ? "צפה בניחוש שלך 👁️" : "הניחושים ננעלו 🔒"
+                  ) : (
+                    hasPredicted(upcomingMatch.match_id) ? "עדכן ניחוש" : "נחש עכשיו"
+                  )}
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
@@ -188,9 +214,9 @@ export const HomeSection: React.FC<HomeSectionProps> = ({ onNavigate, onOpenPred
               משימות ממתינות: משחקים פתוחים לניחוש
             </h4>
 
-            {openMatches.length > 1 ? (
+            {openMatchesForQuickList.length > 0 ? (
               <div className="divide-y divide-gray-50">
-                {openMatches.slice(1, 4).map(om => (
+                {openMatchesForQuickList.slice(0, 3).map(om => (
                   <div key={om.match_id} className="py-3 flex items-center justify-between text-sm last:pb-0">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-mono text-gray-400">{om.match_time}</span>
@@ -225,42 +251,52 @@ export const HomeSection: React.FC<HomeSectionProps> = ({ onNavigate, onOpenPred
           </div>
         </div>
 
-        {/* Widget 2: Top of Leaderboard Overview */}
+        {/* Widget 2: Leaderboard Overview */}
         <div className="space-y-6">
           <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
             <Trophy className="w-5 h-5 text-amber-500" />
-            מובילי הטבלה הכללית
+            טבלת הדירוג הכללית
           </h3>
 
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-md p-6 space-y-4">
-            {topThree.length > 0 ? (
-              <div className="space-y-4">
-                {topThree.map((score, index) => {
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-md p-5 space-y-4">
+            {leaderboard.length > 0 ? (
+              <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
+                {leaderboard.map((score, index) => {
                   const medals = ["🥇", "🥈", "🥉"];
+                  const isMyCouple = score.couple_id === userCoupleId;
                   return (
                     <div
                       key={score.couple_id}
                       className={`flex items-center justify-between p-3 rounded-xl border ${
-                        index === 0
-                          ? "bg-amber-50 border-amber-100"
-                          : "bg-gray-50/50 border-gray-100"
+                        isMyCouple
+                          ? "bg-emerald-50/40 border-emerald-200"
+                          : index === 0
+                            ? "bg-amber-50/50 border-amber-100"
+                            : "bg-gray-50/50 border-gray-100"
                       }`}
                     >
                       <div className="flex items-center gap-2.5">
-                        <span className="text-xl">{medals[index] || "⭐️"}</span>
+                        <span className="text-sm font-mono font-black text-gray-500 w-6 text-center select-none flex items-center justify-center">
+                          {medals[index] || `#${index + 1}`}
+                        </span>
                         <div>
-                          <span className="font-bold text-gray-900 block text-sm">
+                          <span className="font-extrabold text-gray-900 block text-xs sm:text-sm">
                             {score.couple_name}
+                            {isMyCouple && (
+                              <span className="inline-block mr-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                אתם
+                              </span>
+                            )}
                           </span>
-                          <span className="text-xxs font-mono text-gray-400 block">
+                          <span className="text-[10px] font-mono text-gray-400 block mt-0.5">
                             בדירוג: {score.exactHitsCount} פגיעות מדויקות
                           </span>
                         </div>
                       </div>
 
                       <div className="text-left font-mono">
-                        <span className="text-base font-extrabold text-gray-900">{score.totalPoints}</span>
-                        <span className="text-xxs text-gray-400 block">נקודות</span>
+                        <span className="text-base font-black text-emerald-600 block">{score.totalPoints}</span>
+                        <span className="text-[9px] text-gray-450 block font-sans">נקודות</span>
                       </div>
                     </div>
                   );
@@ -270,7 +306,7 @@ export const HomeSection: React.FC<HomeSectionProps> = ({ onNavigate, onOpenPred
                   onClick={() => onNavigate("leaderboard")}
                   className="w-full text-center py-2.5 justify-center flex items-center gap-1.5 text-xs font-bold text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl transition-colors cursor-pointer border border-dashed border-emerald-200 mt-2"
                 >
-                  לצפייה בטבלה המלאה
+                  לפירוט הניקוד המלא באשף הדירוג
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </div>

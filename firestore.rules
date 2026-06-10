@@ -39,6 +39,10 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/matches/$(matchId)).data.prediction_lock_time;
     }
 
+    function isMatchAdminUnlocked(matchId) {
+      return get(/databases/$(database)/documents/matches/$(matchId)).data.get('admin_unlocked', false) == true;
+    }
+
     // 1. Users Collection
     match /users/{userId} {
       allow get, list: if isSignedIn();
@@ -74,9 +78,17 @@ service cloud.firestore {
     match /predictions/{predictionId} {
       allow get, list: if isSignedIn();
       allow create: if isEmailVerified()
-                       && request.resource.data.couple_id == getUserCoupleId(request.auth.uid)
-                       && matchExists(request.resource.data.match_id)
-                       && getMatchPredictionLockTime(request.resource.data.match_id) > request.time;
+                       && (
+                         isAdmin() ||
+                         (
+                           request.resource.data.couple_id == getUserCoupleId(request.auth.uid)
+                           && matchExists(request.resource.data.match_id)
+                           && (
+                             getMatchPredictionLockTime(request.resource.data.match_id) > request.time
+                             || isMatchAdminUnlocked(request.resource.data.match_id)
+                           )
+                         )
+                       );
       
       allow update: if isEmailVerified()
                        && (
@@ -87,7 +99,10 @@ service cloud.firestore {
                            && request.resource.data.points == resource.data.points
                            && request.resource.data.match_id == resource.data.match_id
                            && matchExists(resource.data.match_id)
-                           && getMatchPredictionLockTime(resource.data.match_id) > request.time
+                           && (
+                             getMatchPredictionLockTime(resource.data.match_id) > request.time
+                             || isMatchAdminUnlocked(resource.data.match_id)
+                           )
                          )
                        );
       allow delete: if isAdmin();
