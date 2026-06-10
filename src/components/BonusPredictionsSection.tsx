@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useFirebase } from "./FirebaseProvider";
-import { Award, Lock, Save, Sparkles, CheckCircle, HelpCircle } from "lucide-react";
+import { Award, Lock, Save, Sparkles, CheckCircle, HelpCircle, Unlock, Trash2 } from "lucide-react";
 
 export const BonusPredictionsSection: React.FC = () => {
-  const { bonusPredictions, userProfile, saveBonusPrediction } = useFirebase();
+  const { bonusPredictions, userProfile, saveBonusPrediction, deleteBonusPrediction } = useFirebase();
 
   const [worldCupWinner, setWorldCupWinner] = useState("");
   const [runnerUp, setRunnerUp] = useState("");
@@ -14,6 +14,7 @@ export const BonusPredictionsSection: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [saving, setSaving] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Find existing bonus prediction
   const userBonus = bonusPredictions.find((b) => b.couple_id === userProfile?.couple_id);
@@ -25,6 +26,12 @@ export const BonusPredictionsSection: React.FC = () => {
       setTopScorer(userBonus.top_scorer || "");
       setSurpriseTeam(userBonus.surprise_team || "");
       setIsLocked(userBonus.locked || false);
+    } else {
+      setWorldCupWinner("");
+      setRunnerUp("");
+      setTopScorer("");
+      setSurpriseTeam("");
+      setIsLocked(false);
     }
   }, [userBonus]);
 
@@ -50,6 +57,22 @@ export const BonusPredictionsSection: React.FC = () => {
     }
   };
 
+  const handleDeleteConfirmed = async () => {
+    setErrorMsg("");
+    setSuccessMsg("");
+    try {
+      setSaving(true);
+      await deleteBonusPrediction();
+      setSuccessMsg("ניחוש הבונוס נמחק ואופס בהצלחה! ✓");
+      setShowDeleteConfirm(false);
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || "נכשלה מחיקת הניחוש");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div id="bonus-predictions-section-root" className="space-y-6 pb-20">
       <div className="border-b border-gray-100 pb-4">
@@ -63,13 +86,23 @@ export const BonusPredictionsSection: React.FC = () => {
       </div>
 
       {isLocked ? (
-        <div className="bg-rose-50 border border-rose-100 rounded-2xl p-5 text-rose-800 text-sm flex gap-3 items-start leading-relaxed">
-          <Lock className="w-5 h-5 text-rose-500 flex-shrink-0 mt-0.5" />
-          <div>
-            <strong className="block text-rose-950 font-bold mb-1">ניחושים אלו נעולים כעת!</strong>
-            מנהל הטורניר נעל את האפשרות לערוך ניחושים ארוכי טווח עקב תחילת המשחקים או הכניסה לשלבים המתקדמים. אין אפשרות לעשות שינויים.
+        userProfile?.role === "Admin" ? (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-amber-800 text-xs flex gap-3 items-start leading-relaxed shadow-sm">
+            <Unlock className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5 animate-pulse" />
+            <div>
+              <strong className="block text-amber-950 font-bold mb-1">ניחושים ארוכים נעולים אך פתוחים למנהל!</strong>
+              ניחושי הבונוס נעולים כעת למשתתפים רגילים, אך כמנהל מערכת יש לך הרשאה מלאה לערוך, לעדכן ולשמור אותם בכל עת.
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="bg-rose-50 border border-rose-100 rounded-2xl p-5 text-rose-800 text-sm flex gap-3 items-start leading-relaxed animate-fade-in">
+            <Lock className="w-5 h-5 text-rose-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <strong className="block text-rose-950 font-bold mb-1">ניחושים אלו נעולים כעת!</strong>
+              מנהל הטורניר נעל את האפשרות לערוך ניחושים ארוכי טווח עקב תחילת המשחקים או הכניסה לשלבים המתקדמים. אין אפשרות לעשות שינויים.
+            </div>
+          </div>
+        )
       ) : (
         <div className="bg-amber-50 border border-amber-100 rounded-2xl p-5 text-amber-800 text-sm flex gap-3 items-start leading-relaxed">
           <Sparkles className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5 animate-bounce" />
@@ -94,7 +127,7 @@ export const BonusPredictionsSection: React.FC = () => {
               placeholder="לדוגמה: ארגנטינה / ברזיל"
               value={worldCupWinner}
               onChange={(e) => setWorldCupWinner(e.target.value)}
-              disabled={isLocked}
+              disabled={isLocked && userProfile?.role !== "Admin"}
               className="w-full text-sm px-4 py-3 bg-gray-50 border border-gray-250 focus:border-emerald-500 focus:bg-white text-gray-800 font-medium rounded-xl outline-none transition-colors"
             />
             <span className="text-xxs text-gray-400 font-medium block">מזכה ב-15 נקודות בונוס</span>
@@ -109,7 +142,7 @@ export const BonusPredictionsSection: React.FC = () => {
               placeholder="לדוגמה: צרפת / אנגליה"
               value={runnerUp}
               onChange={(e) => setRunnerUp(e.target.value)}
-              disabled={isLocked}
+              disabled={isLocked && userProfile?.role !== "Admin"}
               className="w-full text-sm px-4 py-3 bg-gray-50 border border-gray-250 focus:border-emerald-500 focus:bg-white text-gray-800 font-medium rounded-xl outline-none transition-colors"
             />
             <span className="text-xxs text-gray-400 font-medium block">מזכה ב-10 נקודות בונוס</span>
@@ -124,7 +157,7 @@ export const BonusPredictionsSection: React.FC = () => {
               placeholder="לדוגמה: אמבפה / ויניסיוס / הולאנד"
               value={topScorer}
               onChange={(e) => setTopScorer(e.target.value)}
-              disabled={isLocked}
+              disabled={isLocked && userProfile?.role !== "Admin"}
               className="w-full text-sm px-4 py-3 bg-gray-50 border border-gray-250 focus:border-emerald-500 focus:bg-white text-gray-800 font-medium rounded-xl outline-none transition-colors"
             />
             <span className="text-xxs text-gray-400 font-medium block">מזכה ב-10 נקודות בונוס</span>
@@ -139,7 +172,7 @@ export const BonusPredictionsSection: React.FC = () => {
               placeholder="לדוגמה: ארצות הברית / קרואטיה / יפן"
               value={surpriseTeam}
               onChange={(e) => setSurpriseTeam(e.target.value)}
-              disabled={isLocked}
+              disabled={isLocked && userProfile?.role !== "Admin"}
               className="w-full text-sm px-4 py-3 bg-gray-50 border border-gray-250 focus:border-emerald-500 focus:bg-white text-gray-800 font-medium rounded-xl outline-none transition-colors"
             />
             <span className="text-xxs text-gray-400 font-medium block">מזכה ב-5 נקודות בונוס</span>
@@ -159,17 +192,55 @@ export const BonusPredictionsSection: React.FC = () => {
           </div>
         )}
 
-        {/* Action Submit */}
-        {!isLocked && (
-          <button
-            id="save-bonus-button"
-            type="submit"
-            disabled={saving}
-            className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-200 text-white font-extrabold text-sm rounded-xl cursor-pointer shadow-xs transition-transform transform active:scale-95 flex items-center justify-center gap-2"
-          >
-            <Save className="w-4.5 h-4.5" />
-            {saving ? "שומר..." : "שמור ניחושי בונוס"}
-          </button>
+        {/* Action Buttons */}
+        {(!isLocked || userProfile?.role === "Admin") && (
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              id="save-bonus-button"
+              type="submit"
+              disabled={saving}
+              className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-200 text-white font-extrabold text-sm rounded-xl cursor-pointer shadow-xs transition-transform transform active:scale-95 flex items-center justify-center gap-2"
+            >
+              <Save className="w-4.5 h-4.5" />
+              {saving ? "שומר..." : "שמור ניחושי בונוס"}
+            </button>
+            {userBonus && (
+              showDeleteConfirm ? (
+                <div id="delete-confirmation-container" className="flex items-center gap-2">
+                  <span className="text-xs text-rose-600 font-bold">האם למחוק?</span>
+                  <button
+                    id="confirm-delete-button"
+                    type="button"
+                    onClick={handleDeleteConfirmed}
+                    disabled={saving}
+                    className="py-3 px-4 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-350 text-white font-extrabold text-sm rounded-xl cursor-pointer transition-transform transform active:scale-95 flex items-center justify-center gap-1.5"
+                  >
+                    כן, מחק לגמרי!
+                  </button>
+                  <button
+                    id="cancel-delete-button"
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    disabled={saving}
+                    className="py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-750 font-bold text-sm rounded-xl cursor-pointer transition-transform transform active:scale-95"
+                  >
+                    ביטול
+                  </button>
+                </div>
+              ) : (
+                <button
+                  id="delete-bonus-button"
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  disabled={saving}
+                  className="py-3 px-5 bg-rose-50 hover:bg-rose-100 disabled:bg-gray-50 text-rose-600 hover:text-rose-700 border border-rose-200 font-bold text-sm rounded-xl cursor-pointer transition-transform transform active:scale-95 flex items-center justify-center gap-2 animate-fade-in"
+                >
+                  <Trash2 className="w-4.5 h-4.5" />
+                  מחק ואפס ניחוש
+                </button>
+              )
+            )}
+          </div>
         )}
       </form>
     </div>

@@ -27,13 +27,14 @@ export function calculateMatchPredictionPoints(
 
   if (predOutcome === actualOutcome) {
     // Correct Winner / Correct Draw
+    const isDraw = predOutcome === 0;
     let pts = settings.correct_winner_points; // 3 pts
-    let reasons = "מנצחת/תיקו נכון (3 נק')";
+    let reasons = isDraw ? "תיקו נכון (3 נק')" : "מנצחת נכונה (3 נק')";
 
     // Check Goal Difference
     if (predDiff === actualDiff) {
       pts += settings.correct_goal_diff_points; // +2 pts = 5 pts total
-      reasons = "מנצחת והפרש שערים נכון (5 נק')";
+      reasons = isDraw ? "תיקו נכון (5 נק')" : "תוצאה נכונה והפרש שערים נכון (5 נק')";
     }
 
     return {

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useFirebase } from "./FirebaseProvider";
-import { Match, Couple, Setting, User, TournamentResults } from "../types";
+import { Match, Couple, Setting, User, TournamentResults, BonusPrediction } from "../types";
 import { doc, setDoc, deleteDoc, updateDoc, collection, onSnapshot } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../firebase";
 import { 
@@ -751,6 +751,77 @@ export const AdminSection: React.FC = () => {
       showSuccess("תוצאות הבונוס נשמרו בהצלחה והניקוד הכללי חושב מחדש! 🎉");
     } catch (err: any) {
       showError(err.message || "שגיאה בעדכון התאריכים");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleLockBonus = async (coupleId: string, currentLocked: boolean) => {
+    try {
+      setLoading(true);
+      const bpRef = doc(db, "bonusPredictions", coupleId);
+      const bpExist = bonusPredictions.find(b => b.couple_id === coupleId);
+      if (bpExist) {
+        await updateDoc(bpRef, { locked: !currentLocked });
+      } else {
+        const placeholder: BonusPrediction = {
+          bonus_prediction_id: coupleId,
+          couple_id: coupleId,
+          world_cup_winner: "",
+          runner_up: "",
+          top_scorer: "",
+          surprise_team: "",
+          bonus_points: 0,
+          locked: !currentLocked,
+          submitted_at: new Date()
+        };
+        await setDoc(bpRef, placeholder);
+      }
+      showSuccess(`מצב הנעילה של ניחושי הבונוס עודכן בהצלחה!`);
+    } catch (err: any) {
+      showError(err.message || "נכשל עדכון מצב הנעילה");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLockAllBonus = async (lockState: boolean) => {
+    let confirmed = true;
+    try {
+      confirmed = window.confirm(`האם אתה בטוח שברצונך ${lockState ? "לנעול" : "לפתוח"} את כל ניחושי הבונוס של הזוגות?`);
+    } catch (e) {
+      confirmed = true; // Safe fallback if browser security blocks confirm() in sandbox iframe
+    }
+    if (!confirmed) {
+      return;
+    }
+    try {
+      setLoading(true);
+      let count = 0;
+      for (const cp of couples) {
+        const bpRef = doc(db, "bonusPredictions", cp.couple_id);
+        const bpExist = bonusPredictions.find(b => b.couple_id === cp.couple_id);
+        if (bpExist) {
+          await updateDoc(bpRef, { locked: lockState });
+        } else {
+          const placeholder: BonusPrediction = {
+            bonus_prediction_id: cp.couple_id,
+            couple_id: cp.couple_id,
+            world_cup_winner: "",
+            runner_up: "",
+            top_scorer: "",
+            surprise_team: "",
+            bonus_points: 0,
+            locked: lockState,
+            submitted_at: new Date()
+          };
+          await setDoc(bpRef, placeholder);
+        }
+        count++;
+      }
+      showSuccess(`עודכנו בהצלחה ${count} ניחושי בונוס למצב ${lockState ? "נעול" : "פתוח"}!`);
+    } catch (err: any) {
+      showError("שגיאה בעדכון הגורף של ניחושי הבונוס");
     } finally {
       setLoading(false);
     }
@@ -1548,68 +1619,154 @@ export const AdminSection: React.FC = () => {
 
       {/* 5. BONUS OUTCOMES WINNERS */}
       {activeSubTab === "bonus" && (
-        <form onSubmit={handleSaveBonusOutcomes} className="bg-white p-5 rounded-2xl border border-gray-150 shadow-sm space-y-6 max-w-2xl">
-          <div>
-            <h3 className="font-extrabold text-sm text-gray-800">הזנת תוצאות הבונוס הרשמיות של הטורניר</h3>
-            <p className="text-xxs text-gray-400 mt-1">
-              בהתאם לתוצאות שתזין כאן, המנוע יחשב את נקודות המענק לכלל המשתמשים ויוסיף לחשבון הסופי.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-            <div className="space-y-1.5">
-              <label className="text-xxs font-bold text-gray-500 block text-right">האלופה בפועל (מחזיקת הגביע)</label>
-              <input
-                type="text"
-                value={wcWinner}
-                onChange={e => setWcWinner(e.target.value)}
-                placeholder="למשל: ארגנטינה"
-                className="w-full p-2.5 bg-gray-50 border rounded-lg font-medium outline-none"
-              />
-            </div>
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
             
-            <div className="space-y-1.5">
-              <label className="text-xxs font-bold text-gray-500 block text-right">סגנית האלופה בפועל</label>
-              <input
-                type="text"
-                value={wcRunnerUp}
-                onChange={e => setWcRunnerUp(e.target.value)}
-                placeholder="למשל: צרפת"
-                className="w-full p-2.5 bg-gray-50 border rounded-lg font-medium outline-none"
-              />
+            {/* Input official results form */}
+            <form onSubmit={handleSaveBonusOutcomes} className="bg-white p-5 rounded-2xl border border-gray-150 shadow-sm space-y-6">
+              <div>
+                <h3 className="font-extrabold text-sm text-gray-800">הזנת תוצאות הבונוס הרשמיות של הטורניר</h3>
+                <p className="text-xxs text-gray-400 mt-1">
+                  בהתאם לתוצאות שתזין כאן, המנוע יחשב את נקודות המענק לכלל המשתמשים ויוסיף לחשבון הסופי.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div className="space-y-1.5">
+                  <label className="text-xxs font-bold text-gray-500 block text-right">האלופה בפועל (מחזיקת הגביע)</label>
+                  <input
+                    type="text"
+                    value={wcWinner}
+                    onChange={e => setWcWinner(e.target.value)}
+                    placeholder="למשל: ארגנטינה"
+                    className="w-full p-2.5 bg-gray-50 border rounded-lg font-medium outline-none text-right"
+                  />
+                </div>
+                
+                <div className="space-y-1.5">
+                  <label className="text-xxs font-bold text-gray-500 block text-right">סגנית האלופה בפועל</label>
+                  <input
+                    type="text"
+                    value={wcRunnerUp}
+                    onChange={e => setWcRunnerUp(e.target.value)}
+                    placeholder="למשל: צרפת"
+                    className="w-full p-2.5 bg-gray-50 border rounded-lg font-medium outline-none text-right"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xxs font-bold text-gray-500 block text-right">מלך השערים בפועל</label>
+                  <input
+                    type="text"
+                    value={topScorerVal}
+                    onChange={e => setTopScorerVal(e.target.value)}
+                    placeholder="למשל: אמבפה"
+                    className="w-full p-2.5 bg-gray-50 border rounded-lg font-medium outline-none text-right"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xxs font-bold text-gray-500 block text-right">הפתעת הטורניר בפועל</label>
+                  <input
+                    type="text"
+                    value={surpriseVal}
+                    onChange={e => setSurpriseVal(e.target.value)}
+                    placeholder="למשל: קרואטיה"
+                    className="w-full p-2.5 bg-gray-50 border rounded-lg font-medium outline-none text-right"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg cursor-pointer transition-transform active:scale-95"
+              >
+                שמור תוצאות בונוסים וחשב נקודות
+              </button>
+            </form>
+
+            {/* Global Lock/Unlock long-term prediction actions & details list */}
+            <div className="bg-white p-5 rounded-2xl border border-gray-150 shadow-sm space-y-6">
+              <div>
+                <h3 className="font-extrabold text-sm text-gray-800">ניהול ונעילת ניחושי הבונוס</h3>
+                <p className="text-xxs text-gray-400 mt-1">
+                  באפשרותך לנעול או לפתוח את ניחושי הזוגות באופן פרטני או גורף עבור כל המשחקים.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => handleLockAllBonus(true)}
+                  disabled={loading}
+                  className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 disabled:bg-gray-200 text-white font-bold text-xxs rounded-lg flex items-center gap-1.5 cursor-pointer transition-transform active:scale-95"
+                >
+                  <Lock className="w-3.5 h-3.5" /> נעל את כל הזוגות
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleLockAllBonus(false)}
+                  disabled={loading}
+                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-200 text-white font-bold text-xxs rounded-lg flex items-center gap-1.5 cursor-pointer transition-transform active:scale-95"
+                >
+                  <Unlock className="w-3.5 h-3.5" /> פתח את כל הזוגות
+                </button>
+              </div>
+
+              <div className="border border-gray-100 rounded-xl divide-y divide-gray-100 max-h-[350px] overflow-y-auto">
+                {couples.map(cp => {
+                  const bp = bonusPredictions.find(b => b.couple_id === cp.couple_id);
+                  const isLocked = bp ? bp.locked : false;
+
+                  return (
+                    <div key={cp.couple_id} className="p-3.5 flex items-center justify-between text-xxs font-sans text-right gap-4">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleLockBonus(cp.couple_id, isLocked)}
+                        disabled={loading}
+                        className={`p-2 rounded-lg cursor-pointer border transition-all ${
+                          isLocked
+                            ? "bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100"
+                            : "bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100"
+                        }`}
+                        title={isLocked ? "פתח נעילה ידנית לזוג זה" : "נעל ניחוש ידנית לזוג זה"}
+                      >
+                        {isLocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                      </button>
+
+                      <div className="space-y-1 flex-grow">
+                        <div className="flex items-center gap-1.5 justify-end">
+                          {isLocked ? (
+                            <span className="px-2 py-0.5 bg-rose-50 border border-rose-100 text-rose-700 rounded-full font-bold flex items-center gap-0.5">
+                              נעול <Lock className="w-2.5 h-2.5" />
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-full font-bold flex items-center gap-0.5">
+                              פתוח <Unlock className="w-2.5 h-2.5" />
+                            </span>
+                          )}
+                          <strong className="text-gray-800 text-xs font-bold">{cp.couple_name}</strong>
+                        </div>
+                        {bp ? (
+                          <div className="text-gray-400 font-medium text-right">
+                            <span className="text-gray-500 font-semibold">אלופה:</span> {bp.world_cup_winner || "-"} |{" "}
+                            <span className="text-gray-500 font-semibold">סגנית:</span> {bp.runner_up || "-"} |{" "}
+                            <span className="text-gray-500 font-semibold">מלך שערים:</span> {bp.top_scorer || "-"} |{" "}
+                            <span className="text-gray-500 font-semibold">הפתעה:</span> {bp.surprise_team || "-"}
+                          </div>
+                        ) : (
+                          <div className="text-gray-350 italic font-medium text-right">טרם הוזן ניחוש לזוג זה</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xxs font-bold text-gray-500 block text-right">מלך השערים בפועל</label>
-              <input
-                type="text"
-                value={topScorerVal}
-                onChange={e => setTopScorerVal(e.target.value)}
-                placeholder="למשל: אמבפה"
-                className="w-full p-2.5 bg-gray-50 border rounded-lg font-medium outline-none"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xxs font-bold text-gray-500 block text-right">הפתעת הטורניר בפועל</label>
-              <input
-                type="text"
-                value={surpriseVal}
-                onChange={e => setSurpriseVal(e.target.value)}
-                placeholder="למשל: קרואטיה"
-                className="w-full p-2.5 bg-gray-50 border rounded-lg font-medium outline-none"
-              />
-            </div>
           </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg cursor-pointer"
-          >
-            שמור תוצאות בונוסים וחשב נקודות
-          </button>
-        </form>
+        </div>
       )}
 
       {/* 6. SETTINGS POINTS CONFIG */}

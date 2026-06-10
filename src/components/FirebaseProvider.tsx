@@ -11,6 +11,7 @@ import {
   getDoc, 
   setDoc, 
   updateDoc,
+  deleteDoc,
   collection, 
   onSnapshot, 
   query,
@@ -49,6 +50,7 @@ interface FirebaseContextType {
   logout: () => Promise<void>;
   savePrediction: (matchId: string, homeGoals: number, awayGoals: number, comment?: string) => Promise<void>;
   saveBonusPrediction: (worldCupWinner: string, runnerUp: string, topScorer: string, surpriseTeam: string) => Promise<void>;
+  deleteBonusPrediction: () => Promise<void>;
   registerUser: (displayName: string, coupleId: string, customNewCoupleName?: string) => Promise<void>;
   recalculatePoints: () => Promise<void>;
 }
@@ -398,9 +400,14 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const bonusRef = doc(db, "bonusPredictions", bonusId);
     const bonusSnap = await getDoc(bonusRef);
     
+    let existingLocked = false;
+    let existingBonusPoints = 0;
+
     if (bonusSnap.exists()) {
       const ex = bonusSnap.data() as BonusPrediction;
-      if (ex.locked) {
+      existingLocked = ex.locked || false;
+      existingBonusPoints = ex.bonus_points || 0;
+      if (ex.locked && userProfile.role !== "Admin") {
         throw new Error("ניחושי הבונוס נעולים כבר על ידי הטורניר או על ידי המערכת");
       }
     }
@@ -412,8 +419,8 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       runner_up: runnerUp,
       top_scorer: topScorer,
       surprise_team: surpriseTeam,
-      bonus_points: 0,
-      locked: false,
+      bonus_points: existingBonusPoints,
+      locked: existingLocked,
       submitted_at: new Date()
     };
 
@@ -421,6 +428,28 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       await setDoc(bonusRef, bonusPayload);
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `bonusPredictions/${bonusId}`);
+    }
+  };
+
+  const deleteBonusPrediction = async () => {
+    if (!currentUser || !userProfile) throw new Error("חובה להתחבר למערכת");
+    const coupleId = userProfile.couple_id;
+    if (!coupleId) throw new Error("משתמש אינו משויך לזוג");
+
+    const bonusId = coupleId;
+    const bonusRef = doc(db, "bonusPredictions", bonusId);
+    const bonusSnap = await getDoc(bonusRef);
+
+    if (bonusSnap.exists()) {
+      const ex = bonusSnap.data() as BonusPrediction;
+      if (ex.locked && userProfile.role !== "Admin") {
+        throw new Error("ניחושי הבונוס נעולים כבר. אין אפשרות למחוק אותם");
+      }
+      try {
+        await deleteDoc(bonusRef);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.WRITE, `bonusPredictions/${bonusId}`);
+      }
     }
   };
 
@@ -548,6 +577,7 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       logout,
       savePrediction,
       saveBonusPrediction,
+      deleteBonusPrediction,
       registerUser,
       recalculatePoints
     }}>

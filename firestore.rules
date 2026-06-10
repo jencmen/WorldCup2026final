@@ -125,7 +125,14 @@ service cloud.firestore {
                            && resource.data.locked == false
                          )
                        );
-      allow delete: if isAdmin();
+      allow delete: if isEmailVerified()
+                       && (
+                         isAdmin() ||
+                         (
+                           bonusPredictionId == getUserCoupleId(request.auth.uid)
+                           && resource.data.get('locked', false) == false
+                         )
+                       );
     }
 
     // 6. Tournament Results Collection
