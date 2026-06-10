@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useFirebase } from "./FirebaseProvider";
 import { Match, Prediction, Couple } from "../types";
 import { Calendar, Filter, Users, Lock, Unlock, MessageSquare, Award, AlertCircle, ArrowUpDown, LayoutGrid, List } from "lucide-react";
+import { getTeamFlag, TeamFlag } from "./flags";
 
 interface MatchesSectionProps {
   onOpenPredictModal: (match: Match) => void;
@@ -229,8 +230,8 @@ export const MatchesSection: React.FC<MatchesSectionProps> = ({ onOpenPredictMod
                 <div className="grid grid-cols-3 items-center justify-items-center my-2">
                   {/* Team A */}
                   <div className="flex flex-col items-center justify-center text-center">
-                    <span className="text-2xl">🌍</span>
-                    <span className="text-sm font-bold text-gray-800 mt-1">{match.team_a}</span>
+                    <TeamFlag teamName={match.team_a} className="w-12 h-8 mb-1" />
+                    <span className="text-sm font-bold text-gray-800">{match.team_a}</span>
                   </div>
 
                   {/* Mid Results Indicator */}
@@ -256,8 +257,8 @@ export const MatchesSection: React.FC<MatchesSectionProps> = ({ onOpenPredictMod
 
                   {/* Team B */}
                   <div className="flex flex-col items-center justify-center text-center">
-                    <span className="text-2xl">🌎</span>
-                    <span className="text-sm font-bold text-gray-800 mt-1">{match.team_b}</span>
+                    <TeamFlag teamName={match.team_b} className="w-12 h-8 mb-1" />
+                    <span className="text-sm font-bold text-gray-800">{match.team_b}</span>
                   </div>
                 </div>
 
@@ -407,9 +408,9 @@ export const MatchesSection: React.FC<MatchesSectionProps> = ({ onOpenPredictMod
 
                   {/* Part 2: Teams & Result */}
                   <div className="flex-1 flex items-center justify-center gap-4 py-2 border-y border-gray-50 lg:border-none lg:py-0">
-                    <div className="flex items-center justify-end gap-2 w-1/3 text-left">
-                      <span className="text-sm font-bold text-gray-800">{match.team_a}</span>
-                      <span className="text-xl">🌍</span>
+                    <div className="flex flex-col items-center justify-center w-1/3 text-center">
+                      <TeamFlag teamName={match.team_a} className="w-10 h-6 mb-1" />
+                      <span className="text-xs font-bold text-gray-800">{match.team_a}</span>
                     </div>
                     
                     <div className="flex flex-col items-center justify-center min-w-[100px]">
@@ -431,9 +432,9 @@ export const MatchesSection: React.FC<MatchesSectionProps> = ({ onOpenPredictMod
                       {match.city && <span className="text-[10px] text-gray-400 block mt-0.5 text-center">{match.city}</span>}
                     </div>
 
-                    <div className="flex items-center justify-start gap-2 w-1/3 text-right">
-                      <span className="text-xl">🌎</span>
-                      <span className="text-sm font-bold text-gray-800">{match.team_b}</span>
+                    <div className="flex flex-col items-center justify-center w-1/3 text-center">
+                      <TeamFlag teamName={match.team_b} className="w-10 h-6 mb-1" />
+                      <span className="text-xs font-bold text-gray-800">{match.team_b}</span>
                     </div>
                   </div>
 

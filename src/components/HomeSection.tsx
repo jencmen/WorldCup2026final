@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useFirebase } from "./FirebaseProvider";
 import { Match, Prediction, Couple } from "../types";
 import { Calendar, Clock, Trophy, ChevronRight, CheckCircle, HelpCircle } from "lucide-react";
+import { getTeamFlag, TeamFlag } from "./flags";
 
 interface HomeSectionProps {
   onNavigate: (tabId: string) => void;
@@ -133,10 +134,8 @@ export const HomeSection: React.FC<HomeSectionProps> = ({ onNavigate, onOpenPred
               <div className="grid grid-cols-3 items-center my-6">
                 {/* Team A */}
                 <div className="flex flex-col items-center justify-center text-center">
-                  <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center text-2xl shadow-xxs">
-                    🌍
-                  </div>
-                  <span className="text-sm font-bold text-gray-900 mt-2">{upcomingMatch.team_a}</span>
+                  <TeamFlag teamName={upcomingMatch.team_a} className="w-14 h-9 shadow-sm rounded-md mb-2" />
+                  <span className="text-sm font-bold text-gray-900">{upcomingMatch.team_a}</span>
                 </div>
 
                 {/* VS Indicator */}
@@ -151,10 +150,8 @@ export const HomeSection: React.FC<HomeSectionProps> = ({ onNavigate, onOpenPred
 
                 {/* Team B */}
                 <div className="flex flex-col items-center justify-center text-center">
-                  <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center text-2xl shadow-xxs">
-                    🌎
-                  </div>
-                  <span className="text-sm font-bold text-gray-900 mt-2">{upcomingMatch.team_b}</span>
+                  <TeamFlag teamName={upcomingMatch.team_b} className="w-14 h-9 shadow-sm rounded-md mb-2" />
+                  <span className="text-sm font-bold text-gray-900">{upcomingMatch.team_b}</span>
                 </div>
               </div>
 
@@ -197,7 +194,13 @@ export const HomeSection: React.FC<HomeSectionProps> = ({ onNavigate, onOpenPred
                   <div key={om.match_id} className="py-3 flex items-center justify-between text-sm last:pb-0">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-mono text-gray-400">{om.match_time}</span>
-                      <span className="font-semibold text-gray-700">{om.team_a} vs {om.team_b}</span>
+                      <span className="font-semibold text-gray-700 flex items-center gap-2">
+                        <TeamFlag teamName={om.team_a} className="w-6 h-4 rounded-sm border border-gray-100" />
+                        <span>{om.team_a}</span>
+                        <span className="text-gray-400 text-xs font-normal">נגד</span>
+                        <span>{om.team_b}</span>
+                        <TeamFlag teamName={om.team_b} className="w-6 h-4 rounded-sm border border-gray-100" />
+                      </span>
                       <span className="text-xxs px-2 py-0.5 rounded-full bg-gray-50 text-gray-400 font-sans">{om.group_name}</span>
                     </div>
 

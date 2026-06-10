@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Match, Prediction } from "../types";
 import { useFirebase } from "./FirebaseProvider";
 import { X, Save, MessageSquare, AlertCircle } from "lucide-react";
+import { getTeamFlag, TeamFlag } from "./flags";
 
 interface PredictModalProps {
   match: Match | null;
@@ -77,7 +78,13 @@ export const PredictModal: React.FC<PredictModalProps> = ({ match, onClose }) =>
         <div className="px-6 py-4 bg-emerald-600 text-white flex justify-between items-center text-right">
           <div>
             <span className="text-xxs uppercase tracking-wider font-mono text-emerald-100 block">הזנת ניחוש משחק</span>
-            <h3 className="text-base font-extrabold tracking-tight">{match.team_a} נגד {match.team_b}</h3>
+            <h3 className="text-base font-extrabold tracking-tight flex items-center justify-end gap-2">
+              <TeamFlag teamName={match.team_a} className="w-6 h-4 rounded-xs border border-emerald-400" />
+              <span>{match.team_a}</span>
+              <span className="text-emerald-200 text-xs font-normal px-0.5">נגד</span>
+              <span>{match.team_b}</span>
+              <TeamFlag teamName={match.team_b} className="w-6 h-4 rounded-xs border border-emerald-400" />
+            </h3>
           </div>
           <button
             onClick={onClose}
@@ -99,7 +106,10 @@ export const PredictModal: React.FC<PredictModalProps> = ({ match, onClose }) =>
           <div className="grid grid-cols-3 items-center justify-items-center bg-gray-50 p-4 rounded-2xl border border-gray-100">
             {/* Team A goals */}
             <div className="flex flex-col items-center gap-1.5">
-              <span className="text-xs font-extrabold text-gray-700">{match.team_a}</span>
+              <div className="flex flex-col items-center">
+                <TeamFlag teamName={match.team_a} className="w-10 h-6 shadow-xxs rounded-xs mb-1" />
+                <span className="text-xs font-bold text-gray-700">{match.team_a}</span>
+              </div>
               <input
                 id="modal-input-home"
                 type="number"
@@ -118,7 +128,10 @@ export const PredictModal: React.FC<PredictModalProps> = ({ match, onClose }) =>
 
             {/* Team B goals */}
             <div className="flex flex-col items-center gap-1.5">
-              <span className="text-xs font-extrabold text-gray-700">{match.team_b}</span>
+              <div className="flex flex-col items-center">
+                <TeamFlag teamName={match.team_b} className="w-10 h-6 shadow-xxs rounded-xs mb-1" />
+                <span className="text-xs font-bold text-gray-700">{match.team_b}</span>
+              </div>
               <input
                 id="modal-input-away"
                 type="number"
