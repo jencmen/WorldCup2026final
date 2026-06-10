@@ -26,7 +26,8 @@ import {
   TournamentResults, 
   Setting,
   CoupleScore,
-  parseFirestoreDate
+  parseFirestoreDate,
+  getMatchKickoffDate
 } from "../types";
 import { calculateMatchPredictionPoints, calculateBonusPoints } from "./ScoreCalculation";
 
@@ -154,10 +155,10 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       snapshot.forEach(doc => {
         items.push(doc.data() as Match);
       });
-      // Sort matches by lock time
+      // Sort matches robustly by human-readable kickoff date and time
       items.sort((a, b) => {
-        const timeA = parseFirestoreDate(a.prediction_lock_time).getTime();
-        const timeB = parseFirestoreDate(b.prediction_lock_time).getTime();
+        const timeA = getMatchKickoffDate(a).getTime();
+        const timeB = getMatchKickoffDate(b).getTime();
         return timeA - timeB;
       });
       setMatches(items);

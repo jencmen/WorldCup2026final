@@ -128,3 +128,50 @@ export function parseFirestoreDate(field: any): Date {
   return isNaN(parsed.getTime()) ? new Date() : parsed;
 }
 
+/**
+ * Returns a robust Date object for a match's kickoff based directly on human-readable match_date and match_time
+ */
+export function getMatchKickoffDate(match: any): Date {
+  if (!match) return new Date();
+  if (!match.match_date) {
+    return parseFirestoreDate(match.prediction_lock_time);
+  }
+  
+  try {
+    const parts = match.match_date.split(/[/.-]/).map((p: string) => p.trim());
+    if (parts.length >= 2) {
+      let day = 11;
+      let month = 6;
+      let year = 2026;
+
+      if (parts[0] && parts[0].length === 4) {
+        year = Number(parts[0]);
+        month = Number(parts[1]);
+        day = Number(parts[2]);
+      } else if (parts[2] && parts[2].length === 4) {
+        day = Number(parts[0]);
+        month = Number(parts[1]);
+        year = Number(parts[2]);
+      } else {
+        day = Number(parts[0] || 11);
+        month = Number(parts[1] || 6);
+        year = Number(parts[2] || 2026);
+      }
+
+      const [hourStr, minuteStr] = (match.match_time || "20:00").split(":");
+      const hour = Number(hourStr || 20);
+      const minute = Number(minuteStr || 0);
+
+      const d = new Date(year, month - 1, day, hour, minute);
+      if (!isNaN(d.getTime())) {
+        return d;
+      }
+    }
+  } catch (e) {
+    // Fall back to prediction_lock_time
+  }
+
+  return parseFirestoreDate(match.prediction_lock_time);
+}
+
+

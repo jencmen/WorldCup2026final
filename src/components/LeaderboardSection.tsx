@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useFirebase } from "./FirebaseProvider";
 import { Award, Trophy, ChevronDown, ChevronUp, Users, ShieldAlert, Sparkles } from "lucide-react";
+import { parseFirestoreDate } from "../types";
 
 export const LeaderboardSection: React.FC = () => {
   const { leaderboard, predictions, matches, bonusPredictions, settings, userProfile } = useFirebase();
@@ -156,9 +157,7 @@ export const LeaderboardSection: React.FC = () => {
                                   
                                   // Verify if prediction is locked (prevent revealing currently active unlocked predictions)
                                   const now = new Date();
-                                  const lock = match.prediction_lock_time?.seconds 
-                                    ? new Date(match.prediction_lock_time.seconds * 1000) 
-                                    : new Date(match.prediction_lock_time);
+                                  const lock = parseFirestoreDate(match.prediction_lock_time);
                                   
                                   const isSecuredLock = now >= lock && !match.admin_unlocked;
                                   const finished = match.match_status === "finished";

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useFirebase } from "./FirebaseProvider";
-import { Match, Prediction, Couple } from "../types";
+import { Match, Prediction, Couple, getMatchKickoffDate, parseFirestoreDate } from "../types";
 import { Calendar, Clock, Trophy, ChevronRight, CheckCircle, HelpCircle } from "lucide-react";
 import { getTeamFlag, TeamFlag } from "./flags";
 
@@ -20,9 +20,7 @@ export const HomeSection: React.FC<HomeSectionProps> = ({ onNavigate, onOpenPred
     
     // Find open matches sorted by lock time desc
     const open = matches.filter(m => {
-      const lockDt = m.prediction_lock_time?.seconds 
-        ? new Date(m.prediction_lock_time.seconds * 1000) 
-        : new Date(m.prediction_lock_time);
+      const lockDt = parseFirestoreDate(m.prediction_lock_time);
       return m.match_status === "scheduled" && (lockDt > nowLog || m.admin_unlocked);
     });
 
@@ -46,9 +44,7 @@ export const HomeSection: React.FC<HomeSectionProps> = ({ onNavigate, onOpenPred
 
     const timer = setInterval(() => {
       const now = new Date();
-      const lockDate = upcomingMatch.prediction_lock_time?.seconds 
-        ? new Date(upcomingMatch.prediction_lock_time.seconds * 1000) 
-        : new Date(upcomingMatch.prediction_lock_time);
+      const lockDate = parseFirestoreDate(upcomingMatch.prediction_lock_time);
 
       const diff = lockDate.getTime() - now.getTime();
 
@@ -80,9 +76,7 @@ export const HomeSection: React.FC<HomeSectionProps> = ({ onNavigate, onOpenPred
   // Helper to check if a match prediction is locked for normal users
   const isLocked = (match: Match) => {
     const now = new Date();
-    const lockDt = match.prediction_lock_time?.seconds
-      ? new Date(match.prediction_lock_time.seconds * 1000)
-      : new Date(match.prediction_lock_time);
+    const lockDt = parseFirestoreDate(match.prediction_lock_time);
     return now >= lockDt && !match.admin_unlocked;
   };
 

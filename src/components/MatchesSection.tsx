@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useFirebase } from "./FirebaseProvider";
-import { Match, Prediction, Couple } from "../types";
+import { Match, Prediction, Couple, getMatchKickoffDate, parseFirestoreDate } from "../types";
 import { Calendar, Filter, Users, Lock, Unlock, MessageSquare, Award, AlertCircle, ArrowUpDown, LayoutGrid, List } from "lucide-react";
 import { getTeamFlag, TeamFlag } from "./flags";
 
@@ -41,20 +41,14 @@ export const MatchesSection: React.FC<MatchesSectionProps> = ({ onOpenPredictMod
 
   const isLocked = (match: Match) => {
     const now = new Date();
-    const lockDt = match.prediction_lock_time?.seconds
-      ? new Date(match.prediction_lock_time.seconds * 1000)
-      : new Date(match.prediction_lock_time);
+    const lockDt = parseFirestoreDate(match.prediction_lock_time);
     return now >= lockDt && !match.admin_unlocked;
   };
 
   // Sort matches based on selected option
   const sortedAndFilteredMatches = [...filteredMatches].sort((a, b) => {
-    const timeA = a.prediction_lock_time?.seconds
-      ? a.prediction_lock_time.seconds * 1000
-      : new Date(a.prediction_lock_time).getTime();
-    const timeB = b.prediction_lock_time?.seconds
-      ? b.prediction_lock_time.seconds * 1000
-      : new Date(b.prediction_lock_time).getTime();
+    const timeA = getMatchKickoffDate(a).getTime();
+    const timeB = getMatchKickoffDate(b).getTime();
 
     if (sortBy === "date-asc") {
       return timeA - timeB;

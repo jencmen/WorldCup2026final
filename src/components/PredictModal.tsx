@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Match, Prediction } from "../types";
+import { Match, Prediction, parseFirestoreDate } from "../types";
 import { useFirebase } from "./FirebaseProvider";
 import { X, Save, MessageSquare, AlertCircle } from "lucide-react";
 import { getTeamFlag, TeamFlag } from "./flags";
@@ -41,9 +41,7 @@ export const PredictModal: React.FC<PredictModalProps> = ({ match, onClose }) =>
 
   if (!match) return null;
 
-  const lockDt = match.prediction_lock_time?.seconds
-    ? new Date(match.prediction_lock_time.seconds * 1000)
-    : new Date(match.prediction_lock_time);
+  const lockDt = parseFirestoreDate(match.prediction_lock_time);
   const isLocked = new Date() >= lockDt && !match.admin_unlocked && userProfile?.role !== "Admin";
 
   const handleSubmit = async (e: React.FormEvent) => {
