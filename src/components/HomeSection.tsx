@@ -3,6 +3,7 @@ import { useFirebase } from "./FirebaseProvider";
 import { Match, Prediction, Couple, getMatchKickoffDate, parseFirestoreDate } from "../types";
 import { Calendar, Clock, Trophy, ChevronRight, CheckCircle, HelpCircle } from "lucide-react";
 import { getTeamFlag, TeamFlag } from "./flags";
+import { SystemLogo } from "./SystemLogo";
 
 interface HomeSectionProps {
   onNavigate: (tabId: string) => void;
@@ -98,8 +99,8 @@ export const HomeSection: React.FC<HomeSectionProps> = ({ onNavigate, onOpenPred
     <div className="space-y-8 pb-20">
       {/* Intro Hero Area */}
       <div className="bg-gradient-to-br from-emerald-600 to-teal-800 rounded-3xl p-6 sm:p-8 text-white shadow-lg relative overflow-hidden">
-        <div className="absolute right-0 bottom-0 opacity-10 pointer-events-none text-9xl">
-          ⚽
+        <div className="absolute -bottom-10 -left-10 sm:-left-6 w-52 h-52 opacity-15 pointer-events-none select-none">
+          <SystemLogo />
         </div>
         <div className="relative z-10 max-w-xl">
           <span className="bg-emerald-500/30 text-emerald-100 text-xs font-semibold px-3 py-1 rounded-full border border-emerald-400/20">
@@ -307,7 +308,7 @@ export const HomeSection: React.FC<HomeSectionProps> = ({ onNavigate, onOpenPred
             ) : (
               <div className="text-center text-gray-400 text-xs py-8">
                 <HelpCircle className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                הטבלה הכללית תתפתעס כאשר יקבעו תוצאות משחקי המונדיאל
+                הטבלה הכללית תתעדכן ברגע שייקבעו תוצאות משחקי המונדיאל
               </div>
             )}
           </div>

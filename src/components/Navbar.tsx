@@ -1,6 +1,7 @@
 import React from "react";
 import { useFirebase } from "./FirebaseProvider";
 import { LogOut, User, Award, Shield, Calendar, Settings, Compass } from "lucide-react";
+import { SystemLogo } from "./SystemLogo";
 
 interface NavbarProps {
   activeTab: string;
@@ -29,9 +30,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
         <div className="flex justify-between items-center h-16">
           {/* Logo Brand */}
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-emerald-500 to-green-600 text-white rounded-lg shadow-sm">
-              <span className="text-xl font-bold font-sans">⚽</span>
-            </div>
+            <SystemLogo className="w-11 h-11 shadow-sm rounded-full bg-slate-900 border border-slate-700" />
             <div>
               <h1 className="text-lg font-bold text-gray-900 tracking-tight">מונדיאל החברים 2026</h1>
               <p className="text-xxs text-gray-400 font-mono">משחק ניחושים חברתי</p>
@@ -89,25 +88,31 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
         </div>
       </div>
 
-      {/* Mobile Bottom Navigation (Always accessible for touch targets > 44px) */}
-      <div className="md:hidden border-t border-gray-100 bg-white fixed bottom-0 left-0 right-0 z-50">
-        <div className="grid grid-cols-5 h-16 justify-items-center items-center">
+      {/* Mobile Bottom Navigation (Always accessible for touch targets > 44px with glassmorphism) */}
+      <div className="md:hidden border-t border-gray-150 bg-white/95 backdrop-blur-md fixed bottom-0 left-0 right-0 z-50 shadow-lg px-2">
+        <div 
+          className="grid h-16 justify-items-center items-center"
+          style={{ gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))` }}
+        >
           {navItems.map((item) => {
             const Icon = item.icon;
+            const isSelected = activeTab === item.id;
             return (
               <button
                 key={item.id}
                 id={`mobile-nav-${item.id}`}
                 onClick={() => setActiveTab(item.id)}
-                className={`flex flex-col items-center justify-center w-full h-full text-xxs gap-1 transition-all ${
-                  activeTab === item.id
-                    ? "text-emerald-600 font-bold"
-                    : "text-gray-400"
+                className={`flex flex-col items-center justify-center w-full h-full text-[10px] gap-1 transition-all cursor-pointer ${
+                  isSelected
+                    ? "text-emerald-600 font-extrabold scale-105"
+                    : "text-gray-400 hover:text-gray-600 font-medium"
                 }`}
                 style={{ minHeight: "44px" }}
               >
-                <Icon className="w-5 h-5" />
-                <span>{item.label}</span>
+                <div className={`p-1.5 rounded-xl transition-all ${isSelected ? "bg-emerald-50 text-emerald-600" : ""}`}>
+                  <Icon className="w-5 h-5" />
+                </div>
+                <span className="leading-none">{item.label}</span>
               </button>
             );
           })}

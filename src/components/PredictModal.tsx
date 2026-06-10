@@ -109,48 +109,108 @@ export const PredictModal: React.FC<PredictModalProps> = ({ match, onClose }) =>
           </div>
 
           {/* Goals Input Field Grid */}
-          <div className="grid grid-cols-3 items-center justify-items-center bg-gray-50 p-4 rounded-2xl border border-gray-100">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center justify-items-center bg-gray-50/70 p-5 rounded-2xl border border-gray-100">
             {/* Team A goals */}
-            <div className="flex flex-col items-center gap-1.5">
-              <div className="flex flex-col items-center">
-                <TeamFlag teamName={match.team_a} className="w-10 h-6 shadow-xxs rounded-xs mb-1" />
+            <div className="flex flex-col items-center gap-2">
+              <div className="flex flex-col items-center text-center">
+                <TeamFlag teamName={match.team_a} className="w-11 h-7 shadow-xs rounded-lg mb-1" />
                 <span className="text-xs font-bold text-gray-700">{match.team_a}</span>
               </div>
-              <input
-                id="modal-input-home"
-                type="number"
-                placeholder="0"
-                min={0}
-                max={30}
-                value={homeGoals}
-                onChange={(e) => setHomeGoals(e.target.value)}
-                disabled={isLocked}
-                className="w-16 h-16 text-center text-2xl font-black bg-white disabled:bg-gray-100 disabled:text-gray-400 border border-gray-200 focus:border-emerald-500 rounded-xl outline-none font-mono"
-                required
-              />
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  id="btn-decrement-home"
+                  disabled={isLocked}
+                  onClick={() => {
+                    const current = parseInt(homeGoals) || 0;
+                    if (current > 0) setHomeGoals(String(current - 1));
+                  }}
+                  className="w-9 h-9 flex items-center justify-center bg-white hover:bg-gray-100 text-gray-700 disabled:bg-gray-100 disabled:text-gray-300 rounded-full shadow-xxs border border-gray-200 font-bold text-lg select-none cursor-pointer active:scale-90 transition-all"
+                  title="הפחת שער"
+                >
+                  -
+                </button>
+                <input
+                  id="modal-input-home"
+                  type="number"
+                  placeholder="0"
+                  min={0}
+                  max={30}
+                  value={homeGoals}
+                  onChange={(e) => setHomeGoals(e.target.value)}
+                  disabled={isLocked}
+                  className="w-14 h-14 text-center text-xl font-extrabold bg-white disabled:bg-gray-100 disabled:text-gray-400 border border-gray-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl outline-none font-mono"
+                  required
+                />
+                <button
+                  type="button"
+                  id="btn-increment-home"
+                  disabled={isLocked}
+                  onClick={() => {
+                    const current = parseInt(homeGoals) || 0;
+                    if (current < 30) setHomeGoals(String(current + 1));
+                    else if (!homeGoals) setHomeGoals("1");
+                  }}
+                  className="w-9 h-9 flex items-center justify-center bg-white hover:bg-gray-100 text-gray-700 disabled:bg-gray-100 disabled:text-gray-300 rounded-full shadow-xxs border border-gray-200 font-bold text-lg select-none cursor-pointer active:scale-90 transition-all"
+                  title="הוסף שער"
+                >
+                  +
+                </button>
+              </div>
             </div>
 
-            {/* Colons */}
-            <span className="text-gray-400 font-black text-2xl">:</span>
+            {/* Separator Colons */}
+            <div className="hidden sm:flex flex-col items-center justify-center">
+              <span className="text-gray-300 font-extrabold text-2xl">:</span>
+            </div>
 
             {/* Team B goals */}
-            <div className="flex flex-col items-center gap-1.5">
-              <div className="flex flex-col items-center">
-                <TeamFlag teamName={match.team_b} className="w-10 h-6 shadow-xxs rounded-xs mb-1" />
+            <div className="flex flex-col items-center gap-2">
+              <div className="flex flex-col items-center text-center">
+                <TeamFlag teamName={match.team_b} className="w-11 h-7 shadow-xs rounded-lg mb-1" />
                 <span className="text-xs font-bold text-gray-700">{match.team_b}</span>
               </div>
-              <input
-                id="modal-input-away"
-                type="number"
-                placeholder="0"
-                min={0}
-                max={30}
-                value={awayGoals}
-                onChange={(e) => setAwayGoals(e.target.value)}
-                disabled={isLocked}
-                className="w-16 h-16 text-center text-2xl font-black bg-white disabled:bg-gray-100 disabled:text-gray-400 border border-gray-200 focus:border-emerald-500 rounded-xl outline-none font-mono"
-                required
-              />
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  id="btn-decrement-away"
+                  disabled={isLocked}
+                  onClick={() => {
+                    const current = parseInt(awayGoals) || 0;
+                    if (current > 0) setAwayGoals(String(current - 1));
+                  }}
+                  className="w-9 h-9 flex items-center justify-center bg-white hover:bg-gray-100 text-gray-700 disabled:bg-gray-100 disabled:text-gray-300 rounded-full shadow-xxs border border-gray-200 font-bold text-lg select-none cursor-pointer active:scale-90 transition-all"
+                  title="הפחת שער"
+                >
+                  -
+                </button>
+                <input
+                  id="modal-input-away"
+                  type="number"
+                  placeholder="0"
+                  min={0}
+                  max={30}
+                  value={awayGoals}
+                  onChange={(e) => setAwayGoals(e.target.value)}
+                  disabled={isLocked}
+                  className="w-14 h-14 text-center text-xl font-extrabold bg-white disabled:bg-gray-100 disabled:text-gray-400 border border-gray-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl outline-none font-mono"
+                  required
+                />
+                <button
+                  type="button"
+                  id="btn-increment-away"
+                  disabled={isLocked}
+                  onClick={() => {
+                    const current = parseInt(awayGoals) || 0;
+                    if (current < 30) setAwayGoals(String(current + 1));
+                    else if (!awayGoals) setAwayGoals("1");
+                  }}
+                  className="w-9 h-9 flex items-center justify-center bg-white hover:bg-gray-100 text-gray-700 disabled:bg-gray-100 disabled:text-gray-300 rounded-full shadow-xxs border border-gray-200 font-bold text-lg select-none cursor-pointer active:scale-90 transition-all"
+                  title="הוסף שער"
+                >
+                  +
+                </button>
+              </div>
             </div>
           </div>
 

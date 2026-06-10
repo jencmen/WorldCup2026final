@@ -1,6 +1,7 @@
 import React from "react";
 import { useFirebase } from "./FirebaseProvider";
 import { Award, ShieldCheck, Sparkles, HelpCircle, AlertTriangle, ExternalLink, X } from "lucide-react";
+import { SystemLogo } from "./SystemLogo";
 
 export const LoginScreen: React.FC = () => {
   const { signInWithGoogle, loading, authError, clearAuthError } = useFirebase();
@@ -13,15 +14,15 @@ export const LoginScreen: React.FC = () => {
       <div />
 
       {/* Login Center Card */}
-      <div className="max-w-md w-full bg-white rounded-3xl shadow-xl border border-gray-150 p-8 space-y-8 mx-auto">
+      <div className="max-w-md w-full bg-white rounded-3xl shadow-xl border border-gray-150 p-8 space-y-6 mx-auto">
         
         {/* Brand visual header */}
         <div className="text-center">
-          <div className="inline-flex p-4 bg-emerald-50 text-emerald-600 rounded-2xl mb-4 shadow-xxs">
-            <span className="text-4xl">⚽</span>
+          <div className="inline-flex mb-2 justify-center">
+            <SystemLogo className="w-32 h-32 drop-shadow-md rounded-full bg-slate-950 border-2 border-slate-800" />
           </div>
           <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">מונדיאל החברים 2026</h2>
-          <p className="mt-2 text-xs text-gray-500 leading-relaxed max-w-xs mx-auto">
+          <p className="mt-1.5 text-xs text-gray-500 leading-relaxed max-w-xs mx-auto">
             משחק הניחושים הידידותי והמשפחתי לטורניר אליפות העולם בקנדה, ארה"ב ומקסיקו.
           </p>
         </div>
