@@ -210,31 +210,55 @@ export const HomeSection: React.FC<HomeSectionProps> = ({ onNavigate, onOpenPred
             </h4>
 
             {openMatchesForQuickList.length > 0 ? (
-              <div className="divide-y divide-gray-50">
+              <div className="divide-y divide-gray-100">
                 {openMatchesForQuickList.slice(0, 3).map(om => (
-                  <div key={om.match_id} className="py-3 flex items-center justify-between text-sm last:pb-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono text-gray-400">{om.match_time}</span>
-                      <span className="font-semibold text-gray-700 flex items-center gap-2">
-                        <TeamFlag teamName={om.team_a} className="w-6 h-4 rounded-sm border border-gray-100" />
-                        <span>{om.team_a}</span>
-                        <span className="text-gray-400 text-xs font-normal">נגד</span>
-                        <span>{om.team_b}</span>
-                        <TeamFlag teamName={om.team_b} className="w-6 h-4 rounded-sm border border-gray-100" />
+                  <div 
+                    key={om.match_id} 
+                    className="py-4 sm:py-3 flex flex-col sm:flex-row sm:items-center justify-between text-sm last:pb-0 gap-3 border-b border-gray-50 last:border-0"
+                  >
+                    {/* Right/Top Side: Teams representation and group */}
+                    <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3">
+                      {/* Match Time */}
+                      <span className="text-xs font-mono text-gray-400 bg-gray-50 px-2 py-0.5 rounded-md sm:bg-transparent sm:p-0">
+                        {om.match_time}
                       </span>
-                      <span className="text-xxs px-2 py-0.5 rounded-full bg-gray-50 text-gray-400 font-sans">{om.group_name}</span>
+                      
+                      {/* Active Teams */}
+                      <span className="font-semibold text-gray-800 flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                        <span className="flex items-center gap-1.5">
+                          <TeamFlag teamName={om.team_a} className="w-5 h-3.5 rounded-sm border border-gray-105 flex-shrink-0" />
+                          <span className="truncate max-w-[100px] sm:max-w-none">{om.team_a}</span>
+                        </span>
+                        
+                        <span className="text-gray-400 text-xs font-normal">נגד</span>
+                        
+                        <span className="flex items-center gap-1.5">
+                          <span className="truncate max-w-[100px] sm:max-w-none">{om.team_b}</span>
+                          <TeamFlag teamName={om.team_b} className="w-5 h-3.5 rounded-sm border border-gray-105 flex-shrink-0" />
+                        </span>
+                      </span>
+
+                      {/* Group Name badge */}
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700/90 font-sans font-medium">
+                        {om.group_name}
+                      </span>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      <span className={`text-xxs font-medium ${hasPredicted(om.match_id) ? "text-emerald-600" : "text-amber-500"}`}>
+                    {/* Left/Bottom Side: Prediction state indicator and CTA Button */}
+                    <div className="flex items-center justify-between sm:justify-end gap-3 border-t border-gray-50/50 pt-2.5 sm:border-0 sm:pt-0">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        hasPredicted(om.match_id) 
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-100" 
+                          : "bg-amber-50 text-amber-750 border border-amber-100"
+                      }`}>
                         {hasPredicted(om.match_id) ? "ניחשת! ✓" : "ממתין לניחוש ⚠"}
                       </span>
                       <button
                         id={`predict-btn-list-${om.match_id}`}
                         onClick={() => onOpenPredictModal(om)}
-                        className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 cursor-pointer"
+                        className="text-xs font-extrabold px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg cursor-pointer transition-all active:scale-95"
                       >
-                        שלח
+                        שלח ניחוש
                       </button>
                     </div>
                   </div>
