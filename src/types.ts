@@ -33,6 +33,7 @@ export interface Match {
   actual_team_a_goals?: number | null;
   actual_team_b_goals?: number | null;
   match_status: "scheduled" | "finished";
+  api_match_id?: number | string | null;
   result_updated_at?: any;
   result_updated_by?: string;
   admin_unlocked?: boolean;

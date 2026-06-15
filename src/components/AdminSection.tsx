@@ -6,8 +6,151 @@ import { db, handleFirestoreError, OperationType } from "../firebase";
 import { 
   Users, Calendar, Save, Trash2, Award, Settings, 
   Upload, HelpCircle, AlertCircle, CheckCircle, RefreshCw, Plus,
-  Pencil, ArrowUpDown, X, Lock, Unlock
+  Pencil, ArrowUpDown, X, Lock, Unlock, FileSpreadsheet
 } from "lucide-react";
+
+const parseMatchDateToYMD = (dateStr: string) => {
+  if (!dateStr) return { day: 11, month: 6, year: 2026 };
+  const parts = dateStr.trim().split(/[/.-]/).map(p => p.trim());
+  let day = 11;
+  let month = 6;
+  let year = 2026;
+  if (parts.length >= 2) {
+    if (parts[0] && parts[0].length === 4) {
+      year = Number(parts[0]);
+      month = Number(parts[1]);
+      day = Number(parts[2]);
+    } else if (parts[2] && parts[2].length === 4) {
+      day = Number(parts[0]);
+      month = Number(parts[1]);
+      year = Number(parts[2]);
+    } else {
+      day = Number(parts[0] || 11);
+      month = Number(parts[1] || 6);
+      year = Number(parts[2] || 2026);
+    }
+  }
+  return { day: isNaN(day) ? 11 : day, month: isNaN(month) ? 6 : month, year: isNaN(year) ? 2026 : year };
+};
+
+const normalizeMatchId = (id: string): string => {
+  if (!id) return "";
+  const cleaned = id.trim().toUpperCase();
+  const numMatch = cleaned.match(/\d+/);
+  if (numMatch) {
+    const num = parseInt(numMatch[0], 10);
+    const padded = String(num).padStart(3, "0");
+    return `WC${padded}`;
+  }
+  return cleaned;
+};
+
+const MAPPING_TABLE: { [key: string]: string } = {
+  WC001: "537327",
+  WC002: "537328",
+  WC003: "537333",
+  WC004: "537345",
+  WC005: "537334",
+  WC006: "537339",
+  WC007: "537340",
+  WC008: "537346",
+  WC009: "537351",
+  WC010: "537357",
+  WC011: "537352",
+  WC012: "537358",
+  WC013: "537369",
+  WC014: "537363",
+  WC015: "537370",
+  WC016: "537364",
+  WC017: "537398",
+  WC018: "537391",
+  WC019: "537392",
+  WC020: "537397",
+  WC021: "537403",
+  WC022: "537409",
+  WC023: "537410",
+  WC024: "537404",
+  WC025: "537329",
+  WC026: "537335",
+  WC027: "537336",
+  WC028: "537330",
+  WC029: "537348",
+  WC030: "537342",
+  WC031: "537341",
+  WC032: "537347",
+  WC033: "537359",
+  WC034: "537353",
+  WC035: "537354",
+  WC036: "537360",
+  WC037: "537371",
+  WC038: "537365",
+  WC039: "537372",
+  WC040: "537366",
+  WC041: "537399",
+  WC042: "537393",
+  WC043: "537394",
+  WC044: "537400",
+  WC045: "537405",
+  WC046: "537411",
+  WC047: "537412",
+  WC048: "537406",
+  WC049: "537337",
+  WC050: "537338",
+  WC051: "537344",
+  WC052: "537343",
+  WC053: "537331",
+  WC054: "537332",
+  WC055: "537356",
+  WC056: "537355",
+  WC057: "537361",
+  WC058: "537362",
+  WC059: "537350",
+  WC060: "537349",
+  WC061: "537396",
+  WC062: "537395",
+  WC063: "537374",
+  WC064: "537373",
+  WC065: "537367",
+  WC066: "537368",
+  WC067: "537414",
+  WC068: "537413",
+  WC069: "537408",
+  WC070: "537407",
+  WC071: "537402",
+  WC072: "537401",
+  WC073: "537417",
+  WC074: "537415",
+  WC075: "537418",
+  WC076: "537423",
+  WC077: "537416",
+  WC078: "537424",
+  WC079: "537425",
+  WC080: "537426",
+  WC081: "537421",
+  WC082: "537422",
+  WC083: "537419",
+  WC084: "537420",
+  WC085: "537429",
+  WC086: "537427",
+  WC087: "537430",
+  WC088: "537428",
+  WC089: "537375",
+  WC090: "537376",
+  WC091: "537377",
+  WC092: "537378",
+  WC093: "537379",
+  WC094: "537380",
+  WC095: "537381",
+  WC096: "537382",
+  WC097: "537383",
+  WC098: "537384",
+  WC099: "537385",
+  WC100: "537386",
+  WC101: "537387",
+  WC102: "537388",
+  WC103: "537389",
+  WC104: "537390"
+};
 
 export const AdminSection: React.FC = () => {
   const { 
@@ -42,6 +185,7 @@ export const AdminSection: React.FC = () => {
   const [city, setCity] = useState("");
   const [broadcast, setBroadcast] = useState("");
   const [lockTimeInMins, setLockTimeInMins] = useState(5); // Default lock prediction 5 minutes before kickoff
+  const [apiMatchId, setApiMatchId] = useState("");
 
   // Sub-Tab 3: Spreadsheet Copy-Paste Match Bulk Import states
   const [pasteData, setPasteData] = useState("");
@@ -58,10 +202,13 @@ export const AdminSection: React.FC = () => {
   const [colCity, setColCity] = useState(3);         // עיר/אצטדיון (Venue/City) - e.g. Row 3
   const [colStage, setColStage] = useState(12);       // שלב (Stage) - e.g. Row 12
   const [colMatchId, setColMatchId] = useState(14);   // match_id - e.g. Row 14
+  const [colApiMatchId, setColApiMatchId] = useState(8);   // api_match_id - e.g. Row 8 (football_data_id)
   const [colBroadcast, setColBroadcast] = useState(5); // ערוץ שידור מרכזי - e.g. Row 5
 
   // Sub-Tab 4: Single score input targets
   const [editingScores, setEditingScores] = useState<{ [matchId: string]: { home: string; away: string } }>({});
+  const [matchSearchTerm, setMatchSearchTerm] = useState("");
+  const [mappingSyncing, setMappingSyncing] = useState(false);
 
   // Sub-Tab 5: Long-term outcomes results states
   const [wcWinner, setWcWinner] = useState(tournamentResults?.actual_world_cup_winner || "");
@@ -87,6 +234,206 @@ export const AdminSection: React.FC = () => {
     setError(msg);
     setTimeout(() => setError(""), 6000);
   };
+
+  // Auto-heal empty api_match_id fields on load if they exist in the database but lack mapping
+  React.useEffect(() => {
+    if (matches && matches.length > 0) {
+      const missingMapping = matches.some(m => !m.api_match_id && MAPPING_TABLE[normalizeMatchId(m.match_id)]);
+      if (missingMapping && !mappingSyncing) {
+        const autoRepair = async () => {
+          let repaired = 0;
+          try {
+            for (const m of matches) {
+              const normId = normalizeMatchId(m.match_id);
+              const correctApiId = MAPPING_TABLE[normId];
+              if (correctApiId && !m.api_match_id) {
+                const matchRef = doc(db, "matches", m.match_id);
+                await updateDoc(matchRef, {
+                  api_match_id: Number(correctApiId)
+                });
+                repaired++;
+              }
+            }
+            if (repaired > 0) {
+              console.log(`[Auto-Heal] Successfully mapped and updated api_match_id for ${repaired} matches in Firestore.`);
+            }
+          } catch (e: any) {
+            console.error("Auto-heal api_match_id failed:", e);
+          }
+        };
+        autoRepair();
+      }
+    }
+  }, [matches, mappingSyncing]);
+
+
+  // Interfaces for football-data.org API matches
+  interface FootballApiMatch {
+    id: string;
+    status: string;
+    utcDate: string;
+    stage: string;
+    group: string;
+    homeTeam: {
+      id: number;
+      name: string;
+      translatedName: string;
+      tla: string;
+    };
+    awayTeam: {
+      id: number;
+      name: string;
+      translatedName: string;
+      tla: string;
+    };
+    scores: {
+      home: number | null;
+      away: number | null;
+    };
+  }
+
+  // Football API Sync states
+  const [apiMatches, setApiMatches] = useState<FootballApiMatch[]>([]);
+  const [apiLoading, setApiLoading] = useState(false);
+  const [apiSyncing, setApiSyncing] = useState(false);
+  const [apiError, setApiError] = useState("");
+  const [apiSuccess, setApiSuccess] = useState("");
+  const [showConfigAlert, setShowConfigAlert] = useState(false);
+  const [showAllApiMatches, setShowAllApiMatches] = useState(false);
+
+  const fetchLiveScores = async () => {
+    setApiLoading(true);
+    setApiError("");
+    setApiSuccess("");
+    setShowConfigAlert(false);
+    try {
+      const response = await fetch("/api/football-scores");
+      if (!response.ok) {
+        throw new Error(`שגיאה בשרת: קוד שגיאה ${response.status}`);
+      }
+      const data = await response.json();
+      if (data.success === false) {
+        if (data.configured === false) {
+          setShowConfigAlert(true);
+        }
+        setApiError(data.message || "נכשלה משיכת הנתונים. נא וודא שהמפתח תקין.");
+        return;
+      }
+      setApiMatches(data.matches || []);
+      setApiSuccess(`הנתונים נטענו בהצלחה! נמצאו ${data.matches?.length || 0} משחקים מ-football-data.org.`);
+      setShowConfigAlert(false);
+    } catch (err: any) {
+      console.error(err);
+      setApiError(err.message || "שגיאה בתקשורת עם השרת.");
+    } finally {
+      setApiLoading(false);
+    }
+  };
+
+
+  const findDatabaseMatchForApiMatch = (apiM: FootballApiMatch): Match | undefined => {
+    return matches.find(dbM => {
+      // Direct match by external API Match ID
+      if (dbM.api_match_id !== undefined && dbM.api_match_id !== null && dbM.api_match_id !== "") {
+        return String(dbM.api_match_id) === String(apiM.id);
+      }
+      // Fallback match by mapping table
+      const normalizedDbId = normalizeMatchId(dbM.match_id);
+      const expectedApiId = MAPPING_TABLE[normalizedDbId];
+      if (expectedApiId && String(expectedApiId) === String(apiM.id)) {
+        return true;
+      }
+      return false;
+    });
+  };
+
+  const getPendingUpdates = () => {
+    const list: { dbMatch: Match; apiMatch: FootballApiMatch; homeScore: number; awayScore: number; status: "finished" | "live" | "scheduled" }[] = [];
+    apiMatches.forEach(apiM => {
+      // Look for matches with scores in football-data.org API
+      if (apiM.scores.home !== null && apiM.scores.away !== null) {
+        const dbM = findDatabaseMatchForApiMatch(apiM);
+        if (dbM) {
+          const scoreDiffers = dbM.actual_team_a_goals !== apiM.scores.home || dbM.actual_team_b_goals !== apiM.scores.away;
+          // Map finished status
+          const apiStatusMapped = apiM.status === "FINISHED" ? "finished" : "scheduled";
+          const statusDiffers = dbM.match_status !== apiStatusMapped;
+          if (scoreDiffers || statusDiffers) {
+            list.push({
+              dbMatch: dbM,
+              apiMatch: apiM,
+              homeScore: apiM.scores.home,
+              awayScore: apiM.scores.away,
+              status: apiStatusMapped
+            });
+          }
+        }
+      }
+    });
+    return list;
+  };
+
+  const handleSyncAllScores = async () => {
+    const list = getPendingUpdates();
+    if (list.length === 0) return;
+    
+    setApiSyncing(true);
+    setApiError("");
+    setApiSuccess("");
+    let counter = 0;
+    try {
+      for (const update of list) {
+        const matchRef = doc(db, "matches", update.dbMatch.match_id);
+        await updateDoc(matchRef, {
+          actual_team_a_goals: update.homeScore,
+          actual_team_b_goals: update.awayScore,
+          match_status: update.status,
+          result_updated_at: new Date(),
+          result_updated_by: currentUser?.uid || "admin"
+        });
+        counter++;
+      }
+      
+      // Recollect global points recalculation
+      await recalculatePoints();
+      showSuccess(`הסתנכרנו בהצלחה ${counter} תוצאות והניקוד של כל החברים עודכן! ⚽`);
+      setApiSuccess(`הסנכרון הסתיים בהצלחה! עודכנו ${counter} משחקים.`);
+      // Clear matches list to reset
+      setApiMatches([]);
+    } catch (err: any) {
+      console.error(err);
+      setApiError(err.message || "שגיאה במהלך עדכון הנתונים ב-Firebase");
+    } finally {
+      setApiSyncing(false);
+    }
+  };
+
+  const handleBulkUpdateApiMatchIds = async () => {
+    setMappingSyncing(true);
+    let updatedCount = 0;
+    try {
+      for (const m of matches) {
+        const normId = normalizeMatchId(m.match_id);
+        const correctApiId = MAPPING_TABLE[normId];
+        if (correctApiId) {
+          if (String(m.api_match_id) !== String(correctApiId)) {
+            const matchRef = doc(db, "matches", m.match_id);
+            await updateDoc(matchRef, {
+              api_match_id: correctApiId
+            });
+            updatedCount++;
+          }
+        }
+      }
+      showSuccess(`מיפוי מזהי ה-API ב-Firebase עודכן בהצלחה! סה"כ עודכנו ${updatedCount} משחקים.`);
+    } catch (err: any) {
+      console.error(err);
+      showError(`שגיאה במהלך עדכון המיפוי: ${err.message || err}`);
+    } finally {
+      setMappingSyncing(false);
+    }
+  };
+
 
   // Add Couple Action
   const handleAddCouple = async (e: React.FormEvent) => {
@@ -152,10 +499,7 @@ export const AdminSection: React.FC = () => {
     const mId = matchId.trim() || `m_${Date.now()}`;
     
     // Parse Date and Time to create localized lock time
-    const parts = matchDate.split(/[/.-]/).map(p => p.trim());
-    const day = Number(parts[0] || 11);
-    const month = Number(parts[1] || 6);
-    const year = Number(parts[2] || 2026);
+    const { day, month, year } = parseMatchDateToYMD(matchDate);
     
     const [hourStr, minuteStr] = (matchTime || "20:00").split(":");
     const hour = Number(hourStr || 20);
@@ -184,6 +528,7 @@ export const AdminSection: React.FC = () => {
       broadcast_channel: broadcast || "",
       prediction_lock_time: calculatedLock,
       match_status: editingMatch ? editingMatch.match_status : "scheduled",
+      api_match_id: apiMatchId.trim() ? (isNaN(Number(apiMatchId.trim())) ? apiMatchId.trim() : Number(apiMatchId.trim())) : null,
       actual_team_a_goals: editingMatch ? editingMatch.actual_team_a_goals : null,
       actual_team_b_goals: editingMatch ? editingMatch.actual_team_b_goals : null
     };
@@ -206,6 +551,7 @@ export const AdminSection: React.FC = () => {
       setCity("");
       setBroadcast("");
       setLockTimeInMins(5);
+      setApiMatchId("");
     } catch (err: any) {
       showError(err.message || "נכשלה יצירת/עדכון המשחק");
     } finally {
@@ -223,12 +569,10 @@ export const AdminSection: React.FC = () => {
     setMatchTime(m.match_time || "20:00");
     setCity(m.city || "");
     setBroadcast(m.broadcast_channel || "");
-    // To estimate lockTimeInMins
+    setApiMatchId(m.api_match_id ? String(m.api_match_id) : "");
+     // To estimate lockTimeInMins
     try {
-      const parts = m.match_date.split(/[/.-]/).map(p => p.trim());
-      const day = Number(parts[0] || 11);
-      const month = Number(parts[1] || 6);
-      const year = Number(parts[2] || 2026);
+      const { day, month, year } = parseMatchDateToYMD(m.match_date);
       const [hour, minute] = (m.match_time || "20:00").split(":").map(Number);
       const kickoff = new Date(year, month - 1, day, hour, minute);
       
@@ -255,6 +599,7 @@ export const AdminSection: React.FC = () => {
     setCity("");
     setBroadcast("");
     setLockTimeInMins(5);
+    setApiMatchId("");
   };
 
   const handleDeleteMatch = (id: string, teams: string) => {
@@ -347,6 +692,7 @@ export const AdminSection: React.FC = () => {
     let activeColStage = colStage;
     let activeColMatchId = colMatchId;
     let activeColBroadcast = colBroadcast;
+    let activeColApiMatchId = colApiMatchId;
 
     let autoDetected = false;
     let autoDetectMessage = "";
@@ -365,6 +711,7 @@ export const AdminSection: React.FC = () => {
       let foundMatchId = -1;
       let foundCity = -1;
       let foundBroadcast = -1;
+      let foundApiMatchId = -1;
 
       cols.forEach((col, idx) => {
         // Team A (Home Team)
@@ -392,7 +739,7 @@ export const AdminSection: React.FC = () => {
           foundStage = idx;
         }
         // Match ID
-        else if (col === "match_id" || col === "match id" || col === "id" || col === "מזהה" || col === "קוד משחק" || col === "קוד") {
+        else if (col === "match_id" || col === "match id" || col === "id" || col === "מזהה" || col === "קוד משחק" || col === "קוד" || col.includes("app_match_id")) {
           foundMatchId = idx;
         }
         // City / Venue
@@ -402,6 +749,10 @@ export const AdminSection: React.FC = () => {
         // Broadcast
         else if (col === "broadcast" || col === "channel" || col === "שידור" || col === "ערוץ" || col.includes("ערוץ")) {
           foundBroadcast = idx;
+        }
+        // API Match ID / Football Data ID
+        else if (col.includes("football_data_id") || col.includes("football_match_id") || col.includes("api_match_id") || col.includes("football data") || col.includes("football match") || col.includes("api match") || col.includes("api_match") || col.includes("external") || col.includes("football_data")) {
+          foundApiMatchId = idx;
         }
       });
 
@@ -415,6 +766,7 @@ export const AdminSection: React.FC = () => {
       if (foundMatchId !== -1) { activeColMatchId = foundMatchId; setColMatchId(foundMatchId); detections.push(`מזהה [עמודה ${foundMatchId}]`); }
       if (foundCity !== -1) { activeColCity = foundCity; setColCity(foundCity); detections.push(`עיר [עמודה ${foundCity}]`); }
       if (foundBroadcast !== -1) { activeColBroadcast = foundBroadcast; setColBroadcast(foundBroadcast); detections.push(`שידור [עמודה ${foundBroadcast}]`); }
+      if (foundApiMatchId !== -1) { activeColApiMatchId = foundApiMatchId; setColApiMatchId(foundApiMatchId); detections.push(`מזהה API [עמודה ${foundApiMatchId}]`); }
 
       if (detections.length > 0) {
         autoDetected = true;
@@ -455,6 +807,11 @@ export const AdminSection: React.FC = () => {
       if (activeColMatchId >= 0 && cols[activeColMatchId]) {
         customMatchId = cols[activeColMatchId].trim();
       }
+
+      const apiIdVal = activeColApiMatchId >= 0 && cols[activeColApiMatchId] ? cols[activeColApiMatchId].trim() : "";
+      const cleanApiId = apiIdVal ? apiIdVal.replace(/['"\s]/g, "") : "";
+      const numericApiId = cleanApiId ? Number(cleanApiId) : null;
+      const finalApiMatchId = numericApiId && !isNaN(numericApiId) ? numericApiId : null;
 
       if (teamAVal && teamBVal && dateVal) {
         const { datePart, timePart } = cleanDateAndTime(dateVal, timeVal);
@@ -507,6 +864,7 @@ export const AdminSection: React.FC = () => {
           broadcast_channel: broadcastVal,
           prediction_lock_time: lock,
           match_status: "scheduled",
+          api_match_id: finalApiMatchId,
           actual_team_a_goals: null,
           actual_team_b_goals: null
         });
@@ -597,6 +955,11 @@ export const AdminSection: React.FC = () => {
             customMatchId = rowCols[activeColMatchId].trim();
           }
 
+          const apiIdVal = activeColApiMatchId >= 0 && rowCols[activeColApiMatchId] ? rowCols[activeColApiMatchId].trim() : "";
+          const cleanApiId = apiIdVal ? apiIdVal.replace(/['"\s]/g, "") : "";
+          const numericApiId = cleanApiId ? Number(cleanApiId) : null;
+          const finalApiMatchId = numericApiId && !isNaN(numericApiId) ? numericApiId : null;
+
           if (teamAVal && teamBVal) {
             const { datePart, timePart } = cleanDateAndTime(dateVal, timeVal);
             const parts = datePart ? datePart.split(/[/.-]/).map(p => p.trim()) : [];
@@ -648,6 +1011,7 @@ export const AdminSection: React.FC = () => {
               broadcast_channel: broadcastVal,
               prediction_lock_time: lock,
               match_status: "scheduled",
+              api_match_id: finalApiMatchId,
               actual_team_a_goals: null,
               actual_team_b_goals: null
             });
@@ -687,6 +1051,131 @@ export const AdminSection: React.FC = () => {
       setPasteData("");
     } catch (err: any) {
       showError(err.message || "נכשל יבוא הנתונים");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load official 104 matches of World Cup 2026 with full API mapping
+  const handleImportOfficialMatches = async () => {
+    setLoading(true);
+    let successCount = 0;
+    try {
+      const { OFFICIAL_MATCHES_2026_CSV } = await import("../officialMatchesCSV");
+      const rows = OFFICIAL_MATCHES_2026_CSV.trim().split("\n");
+      // Skip headers
+      const dataRows = rows.slice(1);
+      
+      for (const row of dataRows) {
+        if (!row.trim()) continue;
+        const cols: string[] = [];
+        let current = "";
+        let inQuotes = false;
+        for (let i = 0; i < row.length; i++) {
+          const char = row[i];
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === "," && !inQuotes) {
+            cols.push(current.trim());
+            current = "";
+          } else {
+            current += char;
+          }
+        }
+        cols.push(current.trim());
+
+        const mId = cols[0]; // app_match_id
+        if (!mId) continue;
+
+        const stageVal = cols[2]; // app_stage
+        const groupVal = cols[3]; // app_group
+        let groupNameCombined = "שלב הבתים";
+        if (stageVal && groupVal && groupVal !== "נוקאאוט") {
+          if (groupVal.length <= 2) {
+            groupNameCombined = `${stageVal} - בית ${groupVal}`;
+          } else {
+            groupNameCombined = `${stageVal} - ${groupVal}`;
+          }
+        } else if (stageVal) {
+          groupNameCombined = stageVal;
+        } else if (groupVal) {
+          groupNameCombined = groupVal.length <= 2 ? `בית ${groupVal}` : groupVal;
+        }
+
+        const dateVal = cols[4]; // date_il
+        const timeVal = cols[5] || "20:00"; // time_il
+        const teamAVal = cols[6]; // team_a_he
+        const teamBVal = cols[7]; // team_b_he
+        const apiIdVal = cols[8] ? cols[8].trim() : null; // football_data_id
+        const apiStatus = cols[15] || "TIMED"; // api_status
+        const apiScoreVal = cols[16] || ""; // api_score
+
+        // Parse date (supports DD/MM/YYYY and M/D/YYYY)
+        const dateParts = dateVal.split("/").map(Number);
+        let day = 11;
+        let month = 6;
+        let year = 2026;
+        if (dateParts.length === 3) {
+          if (dateParts[2] === 2026) {
+            if (dateParts[0] > 12) {
+              day = dateParts[0];
+              month = dateParts[1];
+            } else if (dateParts[1] > 12) {
+              month = dateParts[0];
+              day = dateParts[1];
+            } else {
+              day = dateParts[0];
+              month = dateParts[1];
+            }
+            year = dateParts[2];
+          }
+        }
+
+        const [hour, minute] = timeVal.split(":").map(Number);
+        const kDate = new Date(year, month - 1, day, hour || 20, minute || 0);
+        let lock = new Date();
+        if (kDate && !isNaN(kDate.getTime())) {
+          lock = new Date(kDate.getTime() - (5 * 60 * 1000));
+        } else {
+          const fallbackDate = new Date(2026, 5, 11, 20, 0);
+          lock = new Date(fallbackDate.getTime() - (5 * 60 * 1000));
+        }
+
+        const formattedDate = `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+
+        // Setup results if FINISHED in CSV
+        let actualHomeGoals: number | null = null;
+        let actualAwayGoals: number | null = null;
+        if (apiScoreVal && apiStatus === "FINISHED") {
+          const scoreParts = apiScoreVal.split(":").map(Number);
+          if (!isNaN(scoreParts[0]) && !isNaN(scoreParts[1])) {
+            actualHomeGoals = scoreParts[0];
+            actualAwayGoals = scoreParts[1];
+          }
+        }
+
+        const matchPayload: Match = {
+          match_id: mId,
+          team_a: teamAVal,
+          team_b: teamBVal,
+          match_date: formattedDate,
+          match_time: timeVal,
+          group_name: groupNameCombined,
+          city: "אצטדיוני המונדיאל",
+          broadcast_channel: "כאן 11 📺",
+          prediction_lock_time: lock,
+          match_status: apiStatus === "FINISHED" ? "finished" : "scheduled",
+          api_match_id: apiIdVal ? Number(apiIdVal) : null,
+          actual_team_a_goals: actualHomeGoals,
+          actual_team_b_goals: actualAwayGoals
+        };
+
+        await setDoc(doc(db, "matches", mId), matchPayload);
+        successCount++;
+      }
+      showSuccess(`הצלחה פנומנלית! נטענו ומופו בהצלחה ${successCount} משחקי מונדיאל ל-Firestore!`);
+    } catch (err: any) {
+      showError(err.message || "נכשל יבוא הנתונים הרשמיים");
     } finally {
       setLoading(false);
     }
@@ -1159,15 +1648,27 @@ export const AdminSection: React.FC = () => {
                 </div>
               </div>
 
-              <div>
-                <label className="text-xxs font-bold text-gray-500 block text-right mb-1">זמן נעילת ניחוש (דקות לפני בעיטה)</label>
-                <input
-                  type="number"
-                  placeholder="5"
-                  value={lockTimeInMins}
-                  onChange={(e) => setLockTimeInMins(Number(e.target.value))}
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-250 focus:border-emerald-500 focus:bg-white rounded-lg outline-none font-mono"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xxs font-bold text-gray-500 block text-right mb-1">זמן נעילת ניחוש (דקות לפני בעיטה)</label>
+                  <input
+                    type="number"
+                    placeholder="5"
+                    value={lockTimeInMins}
+                    onChange={(e) => setLockTimeInMins(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-250 focus:border-emerald-500 focus:bg-white rounded-lg outline-none font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="text-xxs font-bold text-gray-500 block text-right mb-1">מזהה משחק ב-API (אופציונלי)</label>
+                  <input
+                    type="text"
+                    placeholder="E.g. 441990"
+                    value={apiMatchId}
+                    onChange={(e) => setApiMatchId(e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-250 focus:border-emerald-500 focus:bg-white rounded-lg outline-none font-mono"
+                  />
+                </div>
               </div>
 
               <button
@@ -1176,7 +1677,7 @@ export const AdminSection: React.FC = () => {
                 className={`w-full py-2.5 text-white rounded-lg text-xs font-bold cursor-pointer transition-colors ${
                   editingMatch 
                     ? "bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400" 
-                    : "bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400"
+                    : "bg-emerald-650 hover:bg-emerald-700 disabled:bg-emerald-400"
                 }`}
               >
                 {editingMatch ? "עדכן משחק בלוח" : "שמור משחק בלוח"}
@@ -1187,7 +1688,16 @@ export const AdminSection: React.FC = () => {
           {/* Table display */}
           <div className="md:col-span-2 bg-white p-5 rounded-2xl border border-gray-150 shadow-sm space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-gray-50 pb-3">
-              <h3 className="font-extrabold text-sm text-gray-800">רשימת משחקי מונדיאל הנוכחיים ({matches.length})</h3>
+              <div className="space-y-1.5 flex-1 select-none">
+                <h3 className="font-extrabold text-sm text-gray-800">רשימת משחקי מונדיאל הנוכחיים ({matches.length})</h3>
+                <input
+                  type="text"
+                  placeholder="חיפוש משחק לפי קבוצה או קוד (לדוגמה: WC041)..."
+                  value={matchSearchTerm}
+                  onChange={(e) => setMatchSearchTerm(e.target.value)}
+                  className="w-full max-w-xs px-2.5 py-1.5 bg-gray-50 border border-gray-200 focus:border-emerald-500 rounded-lg text-xxs font-sans outline-none focus:bg-white transition-colors"
+                />
+              </div>
               
               {/* Date Sorting Controls */}
               <div className="flex items-center gap-2">
@@ -1226,22 +1736,31 @@ export const AdminSection: React.FC = () => {
               <table className="w-full text-right text-xxs divide-y divide-gray-150">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-3 py-3">קוד</th>
-                    <th className="px-3 py-3">משלב / בית</th>
-                    <th className="px-3 py-3">מפגש</th>
-                    <th className="px-3 py-3">תאריך ושעה</th>
-                    <th className="px-3 py-3 text-left">פעולות</th>
+                    <th className="px-3 py-3 font-bold text-gray-700">קוד</th>
+                    <th className="px-3 py-3 font-bold text-gray-700">מזהה ב-API</th>
+                    <th className="px-3 py-3 font-bold text-gray-700">משלב / בית</th>
+                    <th className="px-3 py-3 font-bold text-gray-700">מפגש</th>
+                    <th className="px-3 py-3 font-bold text-gray-700">תאריך ושעה</th>
+                    <th className="px-3 py-3 font-bold text-gray-700 text-left">פעולות</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-150 text-gray-700 font-sans">
                   {[...matches]
+                    .filter(m => {
+                      if (!matchSearchTerm.trim()) return true;
+                      const term = matchSearchTerm.toLowerCase();
+                      return (
+                        m.match_id.toLowerCase().includes(term) ||
+                        m.team_a.toLowerCase().includes(term) ||
+                        m.team_b.toLowerCase().includes(term) ||
+                        m.group_name.toLowerCase().includes(term) ||
+                        (m.api_match_id && String(m.api_match_id).includes(term))
+                      );
+                    })
                     .sort((a, b) => {
                       const parseDateTime = (d: string, t: string) => {
                         try {
-                          const pts = d.split(/[/.-]/).map(p => p.trim());
-                          const day = Number(pts[0] || 1);
-                          const month = Number(pts[1] || 6);
-                          const year = Number(pts[2] || 2026);
+                          const { day, month, year } = parseMatchDateToYMD(d);
                           const [hour, minute] = (t || "20:00").split(":").map(Number);
                           return new Date(year, month - 1, day, hour, minute).getTime();
                         } catch (e) {
@@ -1260,6 +1779,15 @@ export const AdminSection: React.FC = () => {
                           className={`transition-colors ${isCurrentlyEditing ? "bg-amber-50/50" : "hover:bg-gray-50/40"}`}
                         >
                           <td className="px-3 py-3.5 font-mono text-gray-400">{m.match_id}</td>
+                          <td className="px-3 py-3.5 font-mono text-gray-600">
+                            {m.api_match_id ? (
+                              <span className="px-1.5 py-0.5 bg-blue-50 text-blue-800 rounded font-bold border border-blue-100 text-[10px]">
+                                {m.api_match_id}
+                              </span>
+                            ) : (
+                              <span className="text-gray-300 font-bold">—</span>
+                            )}
+                          </td>
                           <td className="px-3 py-3.5"><span className="px-2 py-0.5 bg-gray-100 rounded-full font-bold">{m.group_name}</span></td>
                           <td className="px-3 py-3.5 font-bold">
                             <span className="text-gray-800">{m.team_a}</span>
@@ -1275,10 +1803,7 @@ export const AdminSection: React.FC = () => {
                                 </span>
                               ) : (() => {
                                 const now = new Date();
-                                const pts = m.match_date.split(/[/.-]/).map(p => p.trim());
-                                const day = Number(pts[0] || 1);
-                                const month = Number(pts[1] || 6);
-                                const year = Number(pts[2] || 2026);
+                                const { day, month, year } = parseMatchDateToYMD(m.match_date);
                                 const [hour, minute] = (m.match_time || "20:00").split(":").map(Number);
                                 const kickoff = new Date(year, month - 1, day, hour, minute);
                                 const lockDt = m.prediction_lock_time?.seconds
@@ -1348,17 +1873,44 @@ export const AdminSection: React.FC = () => {
 
       {/* 3. SPREADSHEET BULK DATA IMPORT SECTION */}
       {activeSubTab === "import" && (
-        <div className="bg-white p-6 rounded-2xl border border-gray-150 shadow-sm space-y-6">
-          <div>
-            <h3 className="font-extrabold text-sm text-gray-800 flex items-center gap-1.5">
-              <Upload className="w-5 h-5 text-emerald-500" />
-              ממשק יבוא נתונים ישירות מגליון Excel / Google Sheets
-            </h3>
-            <p className="text-xxs text-gray-400 leading-normal mt-1">
-              פעולה זו מאפשרת להזין את כל לוח המשחקים בכמה שניות ללא צורך בהקשה ידנית!
-              העתק את השורות ישירות מהגליון (עם העמודות הנדרשות) והדבק אותן ממש כאן למטה, כוון את תקינות מיקומי העמודות ובצע ניתוח מקדים.
-            </p>
+        <div className="space-y-6">
+          {/* Quick Import Card */}
+          <div className="bg-gradient-to-r from-emerald-600 to-teal-700 p-6 rounded-2xl text-white shadow-md space-y-4 font-sans">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <span className="inline-block text-[10px] uppercase tracking-wider font-extrabold px-2 py-0.5 bg-white/20 rounded-full font-mono">
+                  יבוא מהיר וסנכרון מלא 2026 🏆
+                </span>
+                <h3 className="font-extrabold text-base leading-snug">טעינת לוח המשחקים הרשמי ומיפוי מזהי API</h3>
+                <p className="text-xxs text-emerald-50/85 leading-relaxed max-w-2xl">
+                  בלחיצת כפתור אחת, המערכת תפענח ותטען את כל 104 משחקי המונדיאל מהקובץ הרשמי שלכם ישירות ל-Firestore.
+                  פעולה זו מקשרת אוטומטית כל משחק (<span className="font-mono text-amber-200">match_id</span>) לקוד ה-API החיצוני שלו (<span className="font-mono text-amber-200">api_match_id</span>).
+                  לאחר מכן תוכלו לגשת ללשונית "עדכון תוצאות" ולסנכרן את כל תוצאות אמת בלחיצה אחת!
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleImportOfficialMatches}
+                disabled={loading}
+                className="py-3 px-6 bg-white hover:bg-emerald-50 text-emerald-900 shadow-sm disabled:bg-emerald-100 disabled:text-emerald-300 font-extrabold text-xs rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all transform active:scale-95 whitespace-nowrap self-start md:self-center"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                {loading ? "מעדכן Firestore..." : "טען את 104 משחקי המונדיאל ומיפוי ה-API"}
+              </button>
+            </div>
           </div>
+
+          <div className="bg-white p-6 rounded-2xl border border-gray-150 shadow-sm space-y-6">
+            <div>
+              <h3 className="font-extrabold text-sm text-gray-800 flex items-center gap-1.5">
+                <Upload className="w-5 h-5 text-emerald-500" />
+                ממשק יבוא נתונים ידני ישירות מגליון Excel / Google Sheets
+              </h3>
+              <p className="text-xxs text-gray-400 leading-normal mt-1">
+                פעולה זו מאפשרת להזין את כל לוח המשחקים בכמה שניות ללא צורך בהקשה ידנית!
+                העתק את השורות ישירות מהגליון (עם העמודות הנדרשות) והדבק אותן ממש כאן למטה, כוון את תקינות מיקומי העמודות ובצע ניתוח מקדים.
+              </p>
+            </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
@@ -1378,6 +1930,7 @@ export const AdminSection: React.FC = () => {
                     setColStage(12);
                     setColMatchId(14);
                     setColBroadcast(5);
+                    setColApiMatchId(8);
                     showSuccess("שוחזרו הגדרות ברירת המחדל של טבלת כאן 11!");
                   }}
                   className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded hover:bg-emerald-100 transition-colors"
@@ -1416,22 +1969,26 @@ export const AdminSection: React.FC = () => {
                   <input type="number" value={colMatchId} onChange={e => setColMatchId(Number(e.target.value))} className="w-full p-2 bg-gray-50 rounded border border-gray-250 font-mono text-center" />
                 </div>
                 <div>
+                  <label className="text-xxs text-gray-500 block mb-1">עמודת מזהה API (api_match_id)</label>
+                  <input type="number" value={colApiMatchId} onChange={e => setColApiMatchId(Number(e.target.value))} className="w-full p-2 bg-amber-50 border border-amber-200 font-mono text-center rounded" />
+                </div>
+                <div>
                   <label className="text-xxs text-gray-500 block mb-1">עמודת ערוץ שידור</label>
                   <input type="number" value={colBroadcast} onChange={e => setColBroadcast(Number(e.target.value))} className="w-full p-2 bg-gray-50 rounded border border-gray-250 font-mono text-center" />
                 </div>
-                <div className="col-span-2">
+                <div>
                   <label className="text-xxs text-gray-500 block mb-1">עמודת עיר/אצטדיון</label>
                   <input type="number" value={colCity} onChange={e => setColCity(Number(e.target.value))} className="w-full p-2 bg-gray-50 rounded border border-gray-250 font-mono text-center" />
                 </div>
               </div>
 
-              <div className="pt-2 flex items-center justify-between">
-                <label className="flex items-center gap-1.5">
+              <div className="pt-2 flex items-center justify-between col-span-2">
+                <label className="flex items-center gap-1.5 cursor-pointer">
                   <input type="checkbox" checked={hasHeader} onChange={e => setHasHeader(e.target.checked)} className="cursor-pointer" />
                   שורת כותרת ראשונה
                 </label>
 
-                <select value={delimiter} onChange={e => setDelimiter(e.target.value as any)} className="p-1 px-2 border rounded cursor-pointer">
+                <select value={delimiter} onChange={e => setDelimiter(e.target.value as any)} className="p-1 px-2 border rounded cursor-pointer text-xs">
                   <option value="\t">טאב (Tab - Excel Default)</option>
                   <option value=",">פסיק (CSV)</option>
                   <option value="|">קו אנכי (|)</option>
@@ -1439,14 +1996,13 @@ export const AdminSection: React.FC = () => {
               </div>
 
               <button
+                type="button"
                 onClick={handleParseSpreadsheet}
                 className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg cursor-pointer"
               >
                 בצע ניתוח מקדים
               </button>
-            </div>
-
-            {/* Input payload box */}
+            </div>         {/* Input payload box */}
             <div className="lg:col-span-2 space-y-3">
               <label className="text-xs font-bold text-gray-600 block text-right">הדבק כאן את תוכן הגליון</label>
               <textarea
@@ -1466,6 +2022,7 @@ export const AdminSection: React.FC = () => {
               <div className="flex justify-between items-center">
                 <span className="text-xs font-extrabold text-gray-700">תצוגה מקדימה ליבוא: נמצאו {previewMatches.length} משחקים תקינים 🔍</span>
                 <button
+                  type="button"
                   onClick={handleImportMatches}
                   className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-bold cursor-pointer"
                 >
@@ -1478,6 +2035,7 @@ export const AdminSection: React.FC = () => {
                   <thead className="bg-gray-50 text-gray-600 text-[10px]">
                     <tr>
                       <th className="px-3 py-2.5 font-bold">קוד משחק</th>
+                      <th className="px-3 py-2.5 font-bold">מזהה API</th>
                       <th className="px-3 py-2.5 font-bold">בית / שלב</th>
                       <th className="px-3 py-2.5 font-bold">קבוצה א' (בית)</th>
                       <th className="px-3 py-2.5 font-bold">קבוצה ב' (חוץ)</th>
@@ -1490,6 +2048,7 @@ export const AdminSection: React.FC = () => {
                     {previewMatches.map((m, idx) => (
                       <tr key={idx} className="hover:bg-gray-50/60 transition-colors">
                         <td className="px-3 py-2 font-mono font-bold text-gray-400">{m.match_id}</td>
+                        <td className="px-3 py-2 font-mono font-bold text-amber-600 bg-amber-50/30">{m.api_match_id || "—"}</td>
                         <td className="px-3 py-2 text-gray-500 font-semibold">{m.group_name}</td>
                         <td className="px-3 py-2 font-bold text-emerald-800">{m.team_a}</td>
                         <td className="px-3 py-2 font-bold text-indigo-800">{m.team_b}</td>
@@ -1504,6 +2063,7 @@ export const AdminSection: React.FC = () => {
             </div>
           )}
         </div>
+        </div>
       )}
 
       {/* 4. ACTUAL SCORE UPDATER */}
@@ -1512,6 +2072,242 @@ export const AdminSection: React.FC = () => {
           <div>
             <h3 className="font-extrabold text-sm text-gray-800">עדכון תוצאות אמת של משחקים ששוחקו</h3>
             <p className="text-xxs text-gray-400 mt-1">חישוב הניקוד מתבצע אוטומטית לכל הניחושים ברגע הפעולה!</p>
+          </div>
+
+          {/* Football API Synchronizer Box */}
+          <div className="bg-emerald-50/40 p-4.5 rounded-xl border border-emerald-100 flex flex-col gap-4 font-sans text-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-1">
+                <span className="text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-mono">Football-Data.org API</span>
+                <h4 className="font-extrabold text-xs text-gray-800">עדכון אוטומטי של תוצאות אמת</h4>
+                <p className="text-xxs text-gray-500 leading-relaxed">
+                  משוך באופן ישיר את התוצאות הרשמיות מה-API, השווה מול הנתונים הנוכחיים וסנכרן בלחיצת כפתור אחת.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={fetchLiveScores}
+                disabled={apiLoading || apiSyncing}
+                className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white font-bold text-xs rounded-lg flex items-center justify-center gap-2 cursor-pointer transition-transform transform active:scale-95"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${apiLoading ? "animate-spin" : ""}`} />
+                {apiLoading ? "טוען..." : "משוך תוצאות מה-API"}
+              </button>
+            </div>
+
+            {/* Error message */}
+            {apiError && (
+              <div className="p-3 bg-rose-50 text-rose-700 border border-rose-100 rounded-lg text-xxs flex items-start gap-1.5 leading-relaxed">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <strong>שגיאה בפעולה:</strong>
+                  <p>{apiError}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Success feedback */}
+            {apiSuccess && (
+              <div className="p-3 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg text-xxs flex items-center gap-1.5">
+                <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{apiSuccess}</span>
+              </div>
+            )}
+
+            {/* Instructions for unconfigured API key */}
+            {showConfigAlert && (
+              <div className="p-4 bg-amber-50 text-amber-850 border border-amber-200 rounded-xl text-xxs space-y-2 leading-relaxed">
+                <div className="flex items-center gap-1.5 font-bold">
+                  <AlertCircle className="w-4 h-4 text-amber-600" />
+                  <span>כיצד להגדיר מפתח API בחינם?</span>
+                </div>
+                <p>
+                  כדי שתוכל להשתמש בסנכרון האוטומטי, עליך להירשם בחינם ל-
+                  <a href="https://www.football-data.org/" target="_blank" rel="noopener noreferrer" className="underline font-bold hover:text-amber-950">football-data.org</a> 
+                  ולקבל מפתח API (משלח ישר למייל). לאחר מכן:
+                </p>
+                <ul className="list-decimal list-inside pr-1 space-y-1">
+                  <li>פתח את תפריט <strong>הגדרות (Settings)</strong> של האפליקציה למעלה.</li>
+                  <li>הזן את המפתח תחת המשתנה <strong>FOOTBALL_DATA_API_KEY</strong> ושמור.</li>
+                  <li>חזור לכאן ולחץ שוב על משוך תוצאות!</li>
+                </ul>
+              </div>
+            )}
+
+            {/* If data fetch succeeded */}
+            {apiMatches.length > 0 && (
+              <div className="border-t border-emerald-100 pt-4 space-y-3">
+                {getPendingUpdates().length > 0 ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xxs text-amber-700 font-bold">
+                        נמצאו {getPendingUpdates().length} משחקים מעודכנים ב-API ששונים מהמסד (או שלא הוזנו):
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleSyncAllScores}
+                        disabled={apiSyncing}
+                        className="py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-extrabold text-xs rounded-lg cursor-pointer transition-all flex items-center gap-1.5 shadow"
+                      >
+                        {apiSyncing ? "מסנכרן ומחשב ניקוד..." : `עדכן את כל ${getPendingUpdates().length} המשחקים`}
+                      </button>
+                    </div>
+
+                    <div className="max-h-52 overflow-y-auto space-y-2 border border-gray-100 p-2.5 rounded-lg bg-white">
+                      {getPendingUpdates().map(({ dbMatch, apiMatch, homeScore, awayScore, status }) => (
+                        <div key={dbMatch.match_id} className="flex flex-col sm:flex-row sm:items-center justify-between p-2 rounded bg-gray-50 border border-gray-100 text-xxs gap-2">
+                          <div>
+                            <span className="px-1.5 py-0.5 rounded bg-gray-200 text-gray-700 font-bold block sm:inline-block sm:ml-2">
+                              {dbMatch.group_name}
+                            </span>
+                            <span className="font-extrabold text-gray-800">
+                              {dbMatch.team_a} vs {dbMatch.team_b}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-3 font-mono">
+                            <div className="bg-emerald-50 text-emerald-800 border border-emerald-150 px-2 py-0.5 rounded font-bold">
+                              תוצאת API: {homeScore} : {awayScore} ({status === "live" ? "שידור חי! ⚽" : "הסתיים"})
+                            </div>
+                            <div className="text-gray-400 font-medium font-sans">
+                              נוכחי בשרת: {dbMatch.actual_team_a_goals ?? "—"} : {dbMatch.actual_team_b_goals ?? "—"}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-2 text-xxs text-emerald-700 font-bold flex items-center justify-center gap-1.5">
+                    <CheckCircle className="w-4 h-4 text-emerald-600" />
+                    <span>כל הנתונים ב-Firebase מסונכרנים במלואם ומעודענים מול ה-API!</span>
+                  </div>
+                )}
+
+                {/* Collapsible area to inspect every single match received from the API */}
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowAllApiMatches(!showAllApiMatches)}
+                    className="text-xxs text-slate-600 font-extrabold hover:text-slate-800 flex items-center gap-1 cursor-pointer select-none bg-slate-100/60 px-2.5 py-1.5 rounded-lg border border-slate-200/50"
+                  >
+                    <span>{showAllApiMatches ? "▲ הסתר את" : "▼ הצג את"}</span>
+                    <span>כל {apiMatches.length} המשחקים שהתקבלו מ-football-data.org</span>
+                  </button>
+
+                  {showAllApiMatches && (
+                    <div className="mt-3 max-h-72 overflow-y-auto border border-slate-200 rounded-xl bg-white p-3 space-y-2">
+                      <p className="text-[10px] text-slate-500 mb-2 leading-relaxed">
+                        כאן מוצגים כל המשחקים שהתקבלו מה-API. השורה צבועה ב-
+                        <span className="text-emerald-700 font-bold">ירוק</span> אם המשחק קושר למשחק במסד הנתונים שלנו, וב-
+                        <span className="text-slate-400 font-bold">אפור</span> אם לא נמצא קשר (וודאו ששמות הקבוצות באפליקציה או התרגומים תואמים לשמות הקבוצות שבקובץ).
+                      </p>
+                      
+                      {apiMatches.map(apiM => {
+                        const dbMatch = findDatabaseMatchForApiMatch(apiM);
+                        const isMatched = !!dbMatch;
+                        
+                        return (
+                          <div
+                            key={apiM.id}
+                            className={`p-2.5 rounded-lg border text-xxs transition-colors ${
+                              isMatched 
+                                ? "bg-emerald-50/20 border-emerald-100/80" 
+                                : "bg-slate-50/40 border-slate-100"
+                            }`}
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                              {/* Left column: API data vs Local DB mapping status */}
+                              <div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className={`px-1.5 py-0.2 rounded-full font-bold text-[9px] uppercase ${
+                                    apiM.status === "FINISHED" 
+                                      ? "bg-slate-200 text-slate-700" 
+                                      : apiM.status === "IN_PLAY" || apiM.status === "PAUSED"
+                                        ? "bg-rose-100 text-rose-700 animate-pulse font-sans font-bold"
+                                        : "bg-blue-50 text-blue-700"
+                                  }`}>
+                                    {apiM.status === "FINISHED" ? "הסתיים" : apiM.status === "IN_PLAY" ? "בשידור חי ⚽" : apiM.status === "PAUSED" ? "מחצית" : "עתידי / מתוזמן"}
+                                  </span>
+
+                                  <span className="text-slate-500 font-semibold font-mono text-[9px]">
+                                    (ID: {apiM.id})
+                                  </span>
+
+                                  <span className="text-slate-400 font-mono text-[9px]">
+                                    {new Date(apiM.utcDate).toLocaleDateString("he-IL", {
+                                      month: "numeric",
+                                      day: "numeric",
+                                      hour: "2-digit",
+                                      minute: "2-digit"
+                                    })}
+                                  </span>
+                                </div>
+
+                                <div className="mt-1 flex items-center gap-1 w-full flex-wrap font-sans">
+                                  <span className="font-extrabold text-slate-800">
+                                    {apiM.homeTeam.translatedName || apiM.homeTeam.name} ({apiM.homeTeam.name})
+                                  </span>
+                                  <span className="text-slate-400 font-bold">vs</span>
+                                  <span className="font-extrabold text-slate-800">
+                                    {apiM.awayTeam.translatedName || apiM.awayTeam.name} ({apiM.awayTeam.name})
+                                  </span>
+                                </div>
+
+                                {isMatched ? (
+                                  <div className="mt-1.5 text-[10px] text-emerald-700 flex items-center gap-1 font-sans">
+                                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                    <span>קושר למשחק:</span>
+                                    <strong className="underline font-bold">
+                                      {dbMatch.team_a} ({dbMatch.actual_team_a_goals ?? "—"}) — {dbMatch.team_b} ({dbMatch.actual_team_b_goals ?? "—"})
+                                    </strong>
+                                  </div>
+                                ) : (
+                                  <div className="mt-1.5 text-[10px] text-slate-400 flex items-center gap-1 font-sans">
+                                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-slate-300" />
+                                    <span>לא נמצא משחק תואם במסד.</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Right column: API score */}
+                              <div className="flex flex-col items-end justify-center min-w-[70px]">
+                                <span className="text-[9px] text-slate-400 mb-0.5">תוצאה ב-API:</span>
+                                <span className="font-mono font-extrabold text-xs px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700">
+                                  {apiM.scores.home ?? "—"} : {apiM.scores.away ?? "—"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Football API ID Mapping Sync Tool Box */}
+          <div className="bg-blue-50/40 p-4.5 rounded-xl border border-blue-100 flex flex-col gap-4 font-sans text-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-1">
+                <span className="text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-mono">Firebase Database Sync</span>
+                <h4 className="font-extrabold text-xs text-slate-800">עדכון מזהי API ב-Firebase לפי טבלת המיפוי</h4>
+                <p className="text-xxs text-slate-500 leading-relaxed">
+                  הפעל תהליך אוטומטי שמעדכן את כל {matches.length} המשחקים במסד הנתונים שלכם עם מזהה ה-API הרשמי שלו. כלי זה מבטיח סנכרון תוצאות וזמנים מושלם ללא שגיאות!
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleBulkUpdateApiMatchIds}
+                disabled={mappingSyncing}
+                className="py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-bold text-xs rounded-lg flex items-center justify-center gap-2 cursor-pointer transition-transform transform active:scale-95 whitespace-nowrap"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${mappingSyncing ? "animate-spin" : ""}`} />
+                {mappingSyncing ? "מעדכן מזהים..." : "עדכן מזהי API ב-Firebase"}
+              </button>
+            </div>
           </div>
 
           <div className="space-y-4 divide-y divide-gray-100 max-h-120 overflow-y-auto pr-1">

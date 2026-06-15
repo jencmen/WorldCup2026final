@@ -512,14 +512,13 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     
     // Evaluate match-by-match scores
     for (const match of matches) {
+      const matchPreds = predictions.filter(pr => pr.match_id === match.match_id);
+
       if (match.match_status === "finished" && 
           match.actual_team_a_goals !== null && 
           match.actual_team_a_goals !== undefined && 
           match.actual_team_b_goals !== null && 
           match.actual_team_b_goals !== undefined) {
-        
-        // Find all predictions for this match
-        const matchPreds = predictions.filter(pr => pr.match_id === match.match_id);
         
         for (const pred of matchPreds) {
           const calc = calculateMatchPredictionPoints(
@@ -535,6 +534,19 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             await updateDoc(predRef, {
               points: calc.points,
               score_reason: calc.reason,
+              calculated_at: new Date()
+            });
+          }
+        }
+      } else {
+        // If the match is not finished or goals are null/cleared (e.g. restored/reset match),
+        // ensure all corresponding predictions are reset to 0 points!
+        for (const pred of matchPreds) {
+          if (pred.points !== 0 || pred.score_reason !== "") {
+            const predRef = doc(db, "predictions", pred.prediction_id);
+            await updateDoc(predRef, {
+              points: 0,
+              score_reason: "",
               calculated_at: new Date()
             });
           }

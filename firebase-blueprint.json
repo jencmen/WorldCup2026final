@@ -45,6 +45,7 @@
         "actual_team_a_goals": { "type": "number", "description": "Final score for Team A" },
         "actual_team_b_goals": { "type": "number", "description": "Final score for Team B" },
         "match_status": { "type": "string", "enum": ["scheduled", "finished"], "description": "Match phase state" },
+        "api_match_id": { "type": "string", "description": "Match ID in the external football-data.org API" },
         "result_updated_at": { "type": "string", "format": "date-time", "description": "Admin response update timestamp" },
         "result_updated_by": { "type": "string", "description": "Admin UID who saved the results" }
       },
