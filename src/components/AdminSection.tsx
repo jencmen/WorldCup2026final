@@ -301,6 +301,45 @@ export const AdminSection: React.FC = () => {
   const [showConfigAlert, setShowConfigAlert] = useState(false);
   const [showAllApiMatches, setShowAllApiMatches] = useState(false);
 
+  // Autonomous Background Agent states
+  const [agentReport, setAgentReport] = useState<any>(null);
+  const [agentLoading, setAgentLoading] = useState(false);
+  const [agentError, setAgentError] = useState("");
+  const [agentSuccess, setAgentSuccess] = useState("");
+
+  const handleTriggerBackendAgent = async (force = false) => {
+    setAgentLoading(true);
+    setAgentError("");
+    setAgentSuccess("");
+    setAgentReport(null);
+    try {
+      const response = await fetch(`/api/sync-agent/run?force=${force}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`שגיאה ${response.status} בתקשורת עם סוכן השרת`);
+      }
+      const data = await response.json();
+      setAgentReport(data);
+      if (data.success) {
+        setAgentSuccess(data.message);
+        showSuccess(data.message);
+      } else {
+        setAgentError(data.message || "פעולת הסוכן נכשלה בקריאת ה-API");
+        showError(data.message || "פעולת סוכן השרת נכשלה");
+      }
+    } catch (err: any) {
+      console.error(err);
+      setAgentError(err.message || "חריגה בלתי צפויה בהפעלת הסוכן בשרת");
+      showError(err.message || "שגיאת תקשורת עם סוכן השרת");
+    } finally {
+      setAgentLoading(false);
+    }
+  };
+
   const fetchLiveScores = async () => {
     setApiLoading(true);
     setApiError("");
@@ -2284,6 +2323,99 @@ export const AdminSection: React.FC = () => {
                     </div>
                   )}
                 </div>
+              </div>
+            )}
+          </div>
+
+          {/* Autonomous background score synchronizer agent box */}
+          <div className="bg-purple-50/40 p-4.5 rounded-xl border border-purple-150 flex flex-col gap-4 font-sans text-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-1">
+                <span className="text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 font-mono">סוכן שרת אוטונומי (Autonomous Daemon)</span>
+                <h4 className="font-extrabold text-xs text-purple-950">סוכן סנכרון אוטונומי בשרת</h4>
+                <p className="text-xxs text-slate-500 leading-relaxed font-sans">
+                  השרת מריץ כעת סוכן רקע עצמאי שמבצע בדיקה ועדכון של תוצאות אמת פעם ב-15 דקות.
+                  באפשרותך להפעיל את הסוכן ידנית כאן כדי לקרוא ישירות ל-API של השרת ולקבל דו"ח מפורט.
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleTriggerBackendAgent(false)}
+                  disabled={agentLoading}
+                  className="py-2 px-3.5 bg-purple-700 hover:bg-purple-800 disabled:bg-purple-300 text-white font-bold text-xs rounded-lg flex items-center justify-center gap-1.5 cursor-pointer transition-transform transform active:scale-95 whitespace-nowrap"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${agentLoading ? "animate-spin" : ""}`} />
+                  {agentLoading ? "מריץ סוכן..." : "הפעל סוכן סנכרון בשרת"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleTriggerBackendAgent(true)}
+                  disabled={agentLoading}
+                  className="py-2 px-2.5 bg-amber-600 hover:bg-amber-700 disabled:bg-slate-300 text-white font-bold text-xs rounded-lg flex items-center justify-center gap-1.5 cursor-pointer transition-transform transform active:scale-95 whitespace-nowrap"
+                  title="חישוב וסנכרון מחדש לכל המשחקים בעלי מזהה API, גם אם כבר עודכנו בעבר"
+                >
+                  סנכרון מלא (Force)
+                </button>
+              </div>
+            </div>
+
+            {/* Error message */}
+            {agentError && (
+              <div className="p-3 bg-rose-50 text-rose-700 border border-rose-100 rounded-lg text-xxs flex items-start gap-1.5 leading-relaxed">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <strong>שגיאה בפעולת הסוכן:</strong>
+                  <p>{agentError}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Success feedback */}
+            {agentSuccess && (
+              <div className="p-3 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg text-xxs flex items-center gap-1.5">
+                <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{agentSuccess}</span>
+              </div>
+            )}
+
+            {/* Agent Report details block */}
+            {agentReport && (
+              <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
+                <h5 className="font-extrabold text-[11px] text-slate-700 flex items-center gap-1.5 border-b border-slate-200/60 pb-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                  דו"ח סוכן סנכרון השרת ({new Date(agentReport.timestamp).toLocaleTimeString()})
+                </h5>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                  <div className="bg-white p-1.5 rounded border border-slate-150">
+                    <span className="text-[10px] text-slate-400 block">סטטוס סוכן:</span>
+                    <strong className={agentReport.success ? "text-emerald-600 font-bold animate-pulse" : "text-rose-600 font-bold"}>
+                      {agentReport.success ? "תקין (Success)" : "שגיאה"}
+                    </strong>
+                  </div>
+                  <div className="bg-white p-1.5 rounded border border-slate-150">
+                    <span className="text-[10px] text-slate-400 block">משחקים שנבדקו:</span>
+                    <strong className="text-slate-700 font-mono font-extrabold">{agentReport.matchesChecked}</strong>
+                  </div>
+                  <div className="bg-white p-1.5 rounded border border-slate-150">
+                    <span className="text-[10px] text-slate-400 block">תוצאות שעודכנו:</span>
+                    <strong className="text-purple-650 font-mono font-extrabold">{agentReport.matchesUpdated}</strong>
+                  </div>
+                  <div className="bg-white p-1.5 rounded border border-slate-150">
+                    <span className="text-[10px] text-slate-400 block">ניחושים שחושבו מחדש:</span>
+                    <strong className="text-indigo-650 font-mono font-extrabold">{agentReport.predictionsRecalculated}</strong>
+                  </div>
+                </div>
+                {agentReport.details && agentReport.details.length > 0 && (
+                  <div className="space-y-1 pt-1">
+                    <span className="text-[9px] text-slate-400 block">פירוט פעולות שבוצעו:</span>
+                    <ul className="text-[10px] bg-white p-2 rounded border border-slate-150 list-disc list-inside space-y-1 text-slate-600 font-medium text-right">
+                      {agentReport.details.map((det: string, idx: number) => (
+                        <li key={idx} className="font-sans font-medium text-purple-700">{det}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
           </div>
